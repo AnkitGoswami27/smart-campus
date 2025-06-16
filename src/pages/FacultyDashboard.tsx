@@ -23,11 +23,12 @@ import {
 } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line } from 'recharts';
 import { motion } from 'framer-motion';
+import { useLocalStorage } from '../hooks/useLocalStorage';
 import toast from 'react-hot-toast';
 
 const FacultyDashboard: React.FC = () => {
   const navigate = useNavigate();
-  const [facultyData, setFacultyData] = useState({
+  const [facultyData, setFacultyData] = useLocalStorage('faculty-data', {
     name: 'Dr. Sarah Johnson',
     facultyId: 'FAC001',
     department: 'Computer Science',
@@ -42,7 +43,8 @@ const FacultyDashboard: React.FC = () => {
   const [showAnnouncementModal, setShowAnnouncementModal] = useState(false);
   const [showStudentModal, setShowStudentModal] = useState(false);
   const [showReportModal, setShowReportModal] = useState(false);
-  const [studentMessages, setStudentMessages] = useState([
+  
+  const [studentMessages, setStudentMessages] = useLocalStorage('faculty-student-messages', [
     { id: 1, from: 'John Doe', subject: 'Question about Assignment 2', time: '30 min ago', unread: true },
     { id: 2, from: 'Jane Smith', subject: 'Request for Extension', time: '2 hours ago', unread: true },
     { id: 3, from: 'Mike Johnson', subject: 'Database Project Help', time: '4 hours ago', unread: false }
@@ -92,7 +94,7 @@ const FacultyDashboard: React.FC = () => {
     }
   ];
 
-  const [pendingTasks, setPendingTasks] = useState([
+  const [pendingTasks, setPendingTasks] = useLocalStorage('faculty-pending-tasks', [
     { id: 1, task: 'Grade CS101 Assignment 3', dueDate: '2024-03-16', priority: 'high' },
     { id: 2, task: 'Review CS201 Project Proposals', dueDate: '2024-03-18', priority: 'medium' },
     { id: 3, task: 'Prepare CS301 Midterm Exam', dueDate: '2024-03-20', priority: 'high' },
@@ -439,29 +441,39 @@ const FacultyDashboard: React.FC = () => {
               </button>
             </div>
             <div className="space-y-4">
-              {pendingTasks.map((task) => (
-                <div key={task.id} className="p-4 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
-                  <div className="flex justify-between items-start">
-                    <div className="flex-1">
-                      <h4 className="font-medium text-gray-900 dark:text-white">{task.task}</h4>
-                      <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                        Due: {new Date(task.dueDate).toLocaleDateString()}
-                      </p>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <span className={`px-2 py-1 rounded-full text-xs font-medium capitalize ${getPriorityColor(task.priority)}`}>
-                        {task.priority}
-                      </span>
-                      <button
-                        onClick={() => completeTask(task.id)}
-                        className="text-green-600 hover:text-green-800 text-sm"
-                      >
-                        Complete
-                      </button>
+              {pendingTasks.length > 0 ? (
+                pendingTasks.map((task) => (
+                  <div key={task.id} className="p-4 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+                    <div className="flex justify-between items-start">
+                      <div className="flex-1">
+                        <h4 className="font-medium text-gray-900 dark:text-white">{task.task}</h4>
+                        <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                          Due: {new Date(task.dueDate).toLocaleDateString()}
+                        </p>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <span className={`px-2 py-1 rounded-full text-xs font-medium capitalize ${getPriorityColor(task.priority)}`}>
+                          {task.priority}
+                        </span>
+                        <button
+                          onClick={() => completeTask(task.id)}
+                          className="text-green-600 hover:text-green-800 text-sm"
+                        >
+                          Complete
+                        </button>
+                      </div>
                     </div>
                   </div>
+                ))
+              ) : (
+                <div className="text-center py-8">
+                  <CheckCircle className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                  <p className="text-gray-500 dark:text-gray-400">All tasks completed!</p>
+                  <p className="text-sm text-gray-400 dark:text-gray-500">
+                    Great job staying on top of your work
+                  </p>
                 </div>
-              ))}
+              )}
             </div>
           </motion.div>
 
@@ -484,37 +496,47 @@ const FacultyDashboard: React.FC = () => {
               </div>
             </div>
             <div className="space-y-4">
-              {studentMessages.map((message) => (
-                <div key={message.id} className="flex items-center p-4 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
-                  <div className="w-10 h-10 rounded-full bg-gradient-to-r from-blue-500 to-purple-600 flex items-center justify-center mr-4">
-                    <span className="text-white font-medium text-sm">
-                      {message.from.charAt(0)}
-                    </span>
-                  </div>
-                  <div className="flex-1">
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <h4 className={`font-medium ${message.unread ? 'text-gray-900 dark:text-white' : 'text-gray-600 dark:text-gray-300'}`}>
-                          {message.from}
-                          {message.unread && <span className="ml-2 w-2 h-2 bg-blue-500 rounded-full inline-block"></span>}
-                        </h4>
-                        <p className="text-sm text-gray-600 dark:text-gray-300">{message.subject}</p>
-                      </div>
-                      <div className="flex flex-col items-end">
-                        <span className="text-xs text-gray-400 dark:text-gray-500 whitespace-nowrap">
-                          {message.time}
-                        </span>
-                        <button
-                          onClick={() => replyToMessage(message.id)}
-                          className="text-xs text-blue-600 hover:text-blue-800 mt-1"
-                        >
-                          Reply
-                        </button>
+              {studentMessages.length > 0 ? (
+                studentMessages.map((message) => (
+                  <div key={message.id} className="flex items-center p-4 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+                    <div className="w-10 h-10 rounded-full bg-gradient-to-r from-blue-500 to-purple-600 flex items-center justify-center mr-4">
+                      <span className="text-white font-medium text-sm">
+                        {message.from.charAt(0)}
+                      </span>
+                    </div>
+                    <div className="flex-1">
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <h4 className={`font-medium ${message.unread ? 'text-gray-900 dark:text-white' : 'text-gray-600 dark:text-gray-300'}`}>
+                            {message.from}
+                            {message.unread && <span className="ml-2 w-2 h-2 bg-blue-500 rounded-full inline-block"></span>}
+                          </h4>
+                          <p className="text-sm text-gray-600 dark:text-gray-300">{message.subject}</p>
+                        </div>
+                        <div className="flex flex-col items-end">
+                          <span className="text-xs text-gray-400 dark:text-gray-500 whitespace-nowrap">
+                            {message.time}
+                          </span>
+                          <button
+                            onClick={() => replyToMessage(message.id)}
+                            className="text-xs text-blue-600 hover:text-blue-800 mt-1"
+                          >
+                            Reply
+                          </button>
+                        </div>
                       </div>
                     </div>
                   </div>
+                ))
+              ) : (
+                <div className="text-center py-8">
+                  <MessageSquare className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                  <p className="text-gray-500 dark:text-gray-400">No new messages</p>
+                  <p className="text-sm text-gray-400 dark:text-gray-500">
+                    Student messages will appear here
+                  </p>
                 </div>
-              ))}
+              )}
             </div>
           </motion.div>
         </div>
