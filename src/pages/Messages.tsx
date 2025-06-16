@@ -3,6 +3,7 @@ import Layout from '../components/Layout';
 import { Send, Search, Users, MessageSquare, Clock, CheckCircle, Plus } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useAuth } from '../contexts/AuthContext';
+import { useLocalStorage } from '../hooks/useLocalStorage';
 import toast from 'react-hot-toast';
 
 const Messages: React.FC = () => {
@@ -11,75 +12,83 @@ const Messages: React.FC = () => {
   const [newMessage, setNewMessage] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [showNewMessageModal, setShowNewMessageModal] = useState(false);
-  const [conversations, setConversations] = useState<any[]>([]);
-  const [messages, setMessages] = useState<any[]>([]);
 
-  // Initialize conversations based on user role
+  // Use localStorage for persistent conversations and messages
+  const [conversations, setConversations] = useLocalStorage(`conversations-${user?.role}`, []);
+  const [messages, setMessages] = useLocalStorage(`messages-${selectedConversation?.id || 'none'}`, []);
+
+  // Initialize conversations based on user role if empty
   useEffect(() => {
-    if (user?.role === 'faculty') {
-      setConversations([
-        {
-          id: 1,
-          name: 'John Doe',
-          role: 'Student',
-          studentId: 'ST2024001',
-          lastMessage: 'Thank you for the clarification on the assignment.',
-          timestamp: '2 min ago',
-          unread: 2,
-          avatar: 'JD'
-        },
-        {
-          id: 2,
-          name: 'Jane Smith',
-          role: 'Student',
-          studentId: 'ST2024002',
-          lastMessage: 'When is the next office hour?',
-          timestamp: '1 hour ago',
-          unread: 1,
-          avatar: 'JS'
-        },
-        {
-          id: 3,
-          name: 'Mike Johnson',
-          role: 'Student',
-          studentId: 'ST2024003',
-          lastMessage: 'I need help with the database project.',
-          timestamp: '3 hours ago',
-          unread: 0,
-          avatar: 'MJ'
-        }
-      ]);
-    } else if (user?.role === 'student') {
-      setConversations([
-        {
-          id: 1,
-          name: 'Dr. Sarah Johnson',
-          role: 'Faculty',
-          department: 'Computer Science',
-          lastMessage: 'The assignment deadline has been extended.',
-          timestamp: '30 min ago',
-          unread: 1,
-          avatar: 'SJ'
-        },
-        {
-          id: 2,
-          name: 'Prof. Michael Brown',
-          role: 'Faculty',
-          department: 'Computer Science',
-          lastMessage: 'Please review the updated syllabus.',
-          timestamp: '2 hours ago',
-          unread: 0,
-          avatar: 'MB'
-        }
-      ]);
+    if (conversations.length === 0 && user?.role) {
+      if (user?.role === 'faculty') {
+        setConversations([
+          {
+            id: 1,
+            name: 'John Doe',
+            role: 'Student',
+            studentId: 'ST2024001',
+            lastMessage: 'Thank you for the clarification on the assignment.',
+            timestamp: '2 min ago',
+            unread: 2,
+            avatar: 'JD'
+          },
+          {
+            id: 2,
+            name: 'Jane Smith',
+            role: 'Student',
+            studentId: 'ST2024002',
+            lastMessage: 'When is the next office hour?',
+            timestamp: '1 hour ago',
+            unread: 1,
+            avatar: 'JS'
+          },
+          {
+            id: 3,
+            name: 'Mike Johnson',
+            role: 'Student',
+            studentId: 'ST2024003',
+            lastMessage: 'I need help with the database project.',
+            timestamp: '3 hours ago',
+            unread: 0,
+            avatar: 'MJ'
+          }
+        ]);
+      } else if (user?.role === 'student') {
+        setConversations([
+          {
+            id: 1,
+            name: 'Dr. Sarah Johnson',
+            role: 'Faculty',
+            department: 'Computer Science',
+            lastMessage: 'The assignment deadline has been extended.',
+            timestamp: '30 min ago',
+            unread: 1,
+            avatar: 'SJ'
+          },
+          {
+            id: 2,
+            name: 'Prof. Michael Brown',
+            role: 'Faculty',
+            department: 'Computer Science',
+            lastMessage: 'Please review the updated syllabus.',
+            timestamp: '2 hours ago',
+            unread: 0,
+            avatar: 'MB'
+          }
+        ]);
+      }
     }
-  }, [user]);
+  }, [user, conversations.length, setConversations]);
 
   // Initialize messages for selected conversation
   useEffect(() => {
     if (selectedConversation) {
-      if (user?.role === 'faculty') {
-        setMessages([
+      const conversationKey = `messages-${selectedConversation.id}`;
+      const storedMessages = localStorage.getItem(conversationKey);
+      
+      if (!storedMessages) {
+        // Initialize with default messages if none exist
+        const defaultMessages = user?.role === 'faculty' ? [
           {
             id: 1,
             senderId: selectedConversation.id,
@@ -120,9 +129,7 @@ const Messages: React.FC = () => {
             timestamp: '10:40 AM',
             isOwn: false
           }
-        ]);
-      } else {
-        setMessages([
+        ] : [
           {
             id: 1,
             senderId: user?.id || 'current-user',
@@ -155,10 +162,15 @@ const Messages: React.FC = () => {
             timestamp: '10:38 AM',
             isOwn: false
           }
-        ]);
+        ];
+        
+        localStorage.setItem(conversationKey, JSON.stringify(defaultMessages));
+        setMessages(defaultMessages);
+      } else {
+        setMessages(JSON.parse(storedMessages));
       }
     }
-  }, [selectedConversation, user]);
+  }, [selectedConversation, user, setMessages]);
 
   const handleSendMessage = () => {
     if (newMessage.trim() && selectedConversation) {
@@ -171,7 +183,12 @@ const Messages: React.FC = () => {
         isOwn: true
       };
 
-      setMessages(prev => [...prev, message]);
+      // Update messages for this conversation
+      const conversationKey = `messages-${selectedConversation.id}`;
+      const currentMessages = JSON.parse(localStorage.getItem(conversationKey) || '[]');
+      const updatedMessages = [...currentMessages, message];
+      localStorage.setItem(conversationKey, JSON.stringify(updatedMessages));
+      setMessages(updatedMessages);
       
       // Update conversation last message
       setConversations(prev => prev.map(conv => 
@@ -195,7 +212,11 @@ const Messages: React.FC = () => {
           timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
           isOwn: false
         };
-        setMessages(prev => [...prev, reply]);
+        
+        const latestMessages = JSON.parse(localStorage.getItem(conversationKey) || '[]');
+        const withReply = [...latestMessages, reply];
+        localStorage.setItem(conversationKey, JSON.stringify(withReply));
+        setMessages(withReply);
       }, 2000);
     }
   };

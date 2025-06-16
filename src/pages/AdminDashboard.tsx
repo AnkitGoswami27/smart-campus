@@ -24,11 +24,12 @@ import {
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart as RechartsPieChart, Cell } from 'recharts';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
+import { useLocalStorage } from '../hooks/useLocalStorage';
 import toast from 'react-hot-toast';
 
 const AdminDashboard: React.FC = () => {
   const navigate = useNavigate();
-  const [stats, setStats] = useState({
+  const [stats, setStats] = useLocalStorage('admin-stats', {
     totalStudents: 1248,
     totalFaculty: 89,
     activeCourses: 156,
@@ -37,7 +38,7 @@ const AdminDashboard: React.FC = () => {
     resourceUtilization: 72.8
   });
 
-  const [recentActivities, setRecentActivities] = useState([
+  const [recentActivities, setRecentActivities] = useLocalStorage('admin-recent-activities', [
     { id: 1, action: 'New student registration', user: 'John Doe', time: '2 minutes ago', type: 'success' },
     { id: 2, action: 'Course schedule updated', user: 'Dr. Smith', time: '15 minutes ago', type: 'info' },
     { id: 3, action: 'Resource booking cancelled', user: 'Jane Wilson', time: '1 hour ago', type: 'warning' },
@@ -126,6 +127,7 @@ const AdminDashboard: React.FC = () => {
 
   const generateReport = () => {
     setShowReportModal(true);
+    addRecentActivity('System report generated', 'Admin', 'info');
     toast.success('Generating comprehensive report...');
     setTimeout(() => {
       toast.success('Report generated successfully! Check your downloads.');
@@ -441,27 +443,45 @@ const AdminDashboard: React.FC = () => {
           transition={{ duration: 0.5, delay: 0.7 }}
           className="lg:col-span-2 bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm"
         >
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Recent Activity</h3>
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Recent Activity</h3>
+            <button
+              onClick={() => setRecentActivities([])}
+              className="text-sm text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
+            >
+              Clear All
+            </button>
+          </div>
           <div className="space-y-4">
-            {recentActivities.map((activity) => (
-              <motion.div 
-                key={activity.id} 
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                className="flex items-center p-3 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
-              >
-                <div className="mr-3">
-                  {getActivityIcon(activity.type)}
-                </div>
-                <div className="flex-1">
-                  <p className="text-sm text-gray-900 dark:text-white">{activity.action}</p>
-                  <p className="text-xs text-gray-500 dark:text-gray-400">by {activity.user}</p>
-                </div>
-                <div className="text-xs text-gray-400 dark:text-gray-500">
-                  {activity.time}
-                </div>
-              </motion.div>
-            ))}
+            {recentActivities.length > 0 ? (
+              recentActivities.map((activity) => (
+                <motion.div 
+                  key={activity.id} 
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  className="flex items-center p-3 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                >
+                  <div className="mr-3">
+                    {getActivityIcon(activity.type)}
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-sm text-gray-900 dark:text-white">{activity.action}</p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">by {activity.user}</p>
+                  </div>
+                  <div className="text-xs text-gray-400 dark:text-gray-500">
+                    {activity.time}
+                  </div>
+                </motion.div>
+              ))
+            ) : (
+              <div className="text-center py-8">
+                <Activity className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                <p className="text-gray-500 dark:text-gray-400">No recent activity</p>
+                <p className="text-sm text-gray-400 dark:text-gray-500">
+                  Activity will appear here as you use the system
+                </p>
+              </div>
+            )}
           </div>
         </motion.div>
       </div>
