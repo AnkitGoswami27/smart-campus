@@ -545,4 +545,5 @@ const StudentDashboard: React.FC = () => {
   );
 };
 
-export default StudentDashboard;
+export default StudentDashboard; 
+// Note: Ensure you have the necessary dependencies installed for this code to work, including `react`, `react-router-dom`, `lucide-react`, `recharts`, `framer-motion`, and `react-hot-toast`.
