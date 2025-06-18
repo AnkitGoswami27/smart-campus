@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Layout from '../components/Layout';
 import { 
   BookOpen, 
@@ -15,7 +15,8 @@ import {
   MessageSquare,
   Star,
   Target,
-  Activity
+  Activity,
+  Paperclip
 } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, RadialBarChart, RadialBar, BarChart, Bar } from 'recharts';
 import { motion } from 'framer-motion';
@@ -38,6 +39,51 @@ const StudentDashboard: React.FC = () => {
   const [showGradeModal, setShowGradeModal] = useState(false);
   const [showScheduleModal, setShowScheduleModal] = useState(false);
   const [showAssignmentModal, setShowAssignmentModal] = useState(false);
+
+  // Real-time announcements from faculty
+  const [recentAnnouncements, setRecentAnnouncements] = useState([]);
+
+  // Load announcements from localStorage on component mount
+  useEffect(() => {
+    const loadAnnouncements = () => {
+      const storedAnnouncements = JSON.parse(localStorage.getItem('student-announcements') || '[]');
+      if (storedAnnouncements.length === 0) {
+        // Default announcements if none exist
+        const defaultAnnouncements = [
+          { id: 1, title: 'Spring Break Schedule', content: 'Campus will be closed from March 20-27', time: '2 hours ago', priority: 'normal', hasAttachment: false },
+          { id: 2, title: 'Library Extended Hours', content: 'Open 24/7 during finals week', time: '1 day ago', priority: 'normal', hasAttachment: false },
+          { id: 3, title: 'Registration Opens', content: 'Fall 2024 course registration begins April 1', time: '2 days ago', priority: 'high', hasAttachment: false }
+        ];
+        setRecentAnnouncements(defaultAnnouncements);
+        localStorage.setItem('student-announcements', JSON.stringify(defaultAnnouncements));
+      } else {
+        setRecentAnnouncements(storedAnnouncements);
+      }
+    };
+
+    loadAnnouncements();
+
+    // Listen for storage changes (real-time updates)
+    const handleStorageChange = (e) => {
+      if (e.key === 'student-announcements') {
+        const newAnnouncements = JSON.parse(e.newValue || '[]');
+        setRecentAnnouncements(newAnnouncements);
+        if (newAnnouncements.length > recentAnnouncements.length) {
+          toast.success('New announcement received!');
+        }
+      }
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+    
+    // Also check for updates periodically
+    const interval = setInterval(loadAnnouncements, 2000);
+
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+      clearInterval(interval);
+    };
+  }, []);
 
   const performanceData = [
     { month: 'Jan', gpa: 3.2 },
@@ -67,16 +113,10 @@ const StudentDashboard: React.FC = () => {
   ];
 
   const currentCourses = [
-    { id: 1, name: 'Advanced Algorithms', code: 'CS401', instructor: 'Dr. Smith', credits: 3, grade: 'A-' },
-    { id: 2, name: 'Database Systems', code: 'CS402', instructor: 'Prof. Johnson', credits: 3, grade: 'B+' },
-    { id: 3, name: 'Web Development', code: 'CS403', instructor: 'Dr. Brown', credits: 4, grade: 'A' },
-    { id: 4, name: 'Software Engineering', code: 'CS404', instructor: 'Prof. Davis', credits: 3, grade: 'A-' }
-  ];
-
-  const recentAnnouncements = [
-    { id: 1, title: 'Spring Break Schedule', content: 'Campus will be closed from March 20-27', time: '2 hours ago' },
-    { id: 2, title: 'Library Extended Hours', content: 'Open 24/7 during finals week', time: '1 day ago' },
-    { id: 3, title: 'Registration Opens', content: 'Fall 2024 course registration begins April 1', time: '2 days ago' }
+    { id: 1, code: 'CS401', name: 'Advanced Algorithms', instructor: 'Dr. Smith', credits: 3, grade: 'A-' },
+    { id: 2, code: 'CS402', name: 'Database Systems', instructor: 'Prof. Johnson', credits: 3, grade: 'B+' },
+    { id: 3, code: 'CS403', name: 'Web Development', instructor: 'Dr. Brown', credits: 4, grade: 'A' },
+    { id: 4, code: 'CS404', name: 'Software Engineering', instructor: 'Prof. Davis', credits: 3, grade: 'A-' }
   ];
 
   const assignments = [
@@ -135,6 +175,15 @@ const StudentDashboard: React.FC = () => {
       case 'pending': return 'bg-red-50 text-red-700 border-red-200';
       case 'in-progress': return 'bg-yellow-50 text-yellow-700 border-yellow-200';
       default: return 'bg-gray-50 text-gray-700 border-gray-200';
+    }
+  };
+
+  const getPriorityColor = (priority: string) => {
+    switch (priority) {
+      case 'urgent': return 'border-l-4 border-red-500 bg-red-50 dark:bg-red-900/20';
+      case 'high': return 'border-l-4 border-orange-500 bg-orange-50 dark:bg-orange-900/20';
+      case 'normal': return 'border-l-4 border-blue-500 bg-blue-50 dark:bg-blue-900/20';
+      default: return 'border-l-4 border-gray-500 bg-gray-50 dark:bg-gray-900/20';
     }
   };
 
@@ -427,19 +476,40 @@ const StudentDashboard: React.FC = () => {
               <Bell className="h-5 w-5 text-gray-400" />
             </div>
             <div className="space-y-4">
-              {recentAnnouncements.map((announcement) => (
-                <div key={announcement.id} className="p-4 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
-                  <div className="flex justify-between items-start">
-                    <div className="flex-1">
-                      <h4 className="font-medium text-gray-900 dark:text-white">{announcement.title}</h4>
-                      <p className="text-sm text-gray-600 dark:text-gray-300 mt-1">{announcement.content}</p>
+              {recentAnnouncements.length > 0 ? (
+                recentAnnouncements.slice(0, 3).map((announcement) => (
+                  <div key={announcement.id} className={`p-4 rounded-lg transition-colors ${getPriorityColor(announcement.priority)}`}>
+                    <div className="flex justify-between items-start">
+                      <div className="flex-1">
+                        <div className="flex items-center space-x-2 mb-1">
+                          <h4 className="font-medium text-gray-900 dark:text-white">{announcement.title}</h4>
+                          {announcement.hasAttachment && (
+                            <Paperclip className="h-4 w-4 text-gray-500" />
+                          )}
+                          {announcement.priority === 'urgent' && (
+                            <span className="px-2 py-1 bg-red-100 text-red-700 text-xs rounded-full">URGENT</span>
+                          )}
+                          {announcement.priority === 'high' && (
+                            <span className="px-2 py-1 bg-orange-100 text-orange-700 text-xs rounded-full">HIGH</span>
+                          )}
+                        </div>
+                        <p className="text-sm text-gray-600 dark:text-gray-300 mt-1">{announcement.content}</p>
+                      </div>
+                      <span className="text-xs text-gray-400 dark:text-gray-500 whitespace-nowrap ml-4">
+                        {announcement.time}
+                      </span>
                     </div>
-                    <span className="text-xs text-gray-400 dark:text-gray-500 whitespace-nowrap ml-4">
-                      {announcement.time}
-                    </span>
                   </div>
+                ))
+              ) : (
+                <div className="text-center py-8">
+                  <Bell className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                  <p className="text-gray-500 dark:text-gray-400">No announcements</p>
+                  <p className="text-sm text-gray-400 dark:text-gray-500">
+                    New announcements will appear here
+                  </p>
                 </div>
-              ))}
+              )}
             </div>
           </motion.div>
         </div>
