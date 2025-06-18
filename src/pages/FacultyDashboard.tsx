@@ -19,7 +19,9 @@ import {
   Send,
   Award,
   Target,
-  Bell
+  Bell,
+  Upload,
+  X
 } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line } from 'recharts';
 import { motion } from 'framer-motion';
@@ -43,12 +45,17 @@ const FacultyDashboard: React.FC = () => {
   const [showAnnouncementModal, setShowAnnouncementModal] = useState(false);
   const [showStudentModal, setShowStudentModal] = useState(false);
   const [showReportModal, setShowReportModal] = useState(false);
+  const [showUploadModal, setShowUploadModal] = useState(false);
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  const [announcementPdf, setAnnouncementPdf] = useState<File | null>(null);
   
   const [studentMessages, setStudentMessages] = useLocalStorage('faculty-student-messages', [
     { id: 1, from: 'John Doe', subject: 'Question about Assignment 2', time: '30 min ago', unread: true },
     { id: 2, from: 'Jane Smith', subject: 'Request for Extension', time: '2 hours ago', unread: true },
     { id: 3, from: 'Mike Johnson', subject: 'Database Project Help', time: '4 hours ago', unread: false }
   ]);
+
+  const [announcements, setAnnouncements] = useLocalStorage('faculty-announcements', []);
 
   const coursePerformanceData = [
     { course: 'CS101', average: 78 },
@@ -101,18 +108,63 @@ const FacultyDashboard: React.FC = () => {
     { id: 4, task: 'Update Course Materials', dueDate: '2024-03-22', priority: 'low' }
   ]);
 
+  const [gradingAssignments] = useState([
+    { id: 1, course: 'CS101', title: 'Assignment 3: Algorithms', submissions: 24, pending: 24 },
+    { id: 2, course: 'CS201', title: 'Project Proposal', submissions: 18, pending: 12 },
+    { id: 3, course: 'CS301', title: 'Database Design', submissions: 22, pending: 8 }
+  ]);
+
+  const [studentProgress] = useState([
+    { id: 1, name: 'John Doe', studentId: 'ST001', gpa: 3.8, attendance: 95, courses: 4 },
+    { id: 2, name: 'Jane Smith', studentId: 'ST002', gpa: 3.6, attendance: 88, courses: 4 },
+    { id: 3, name: 'Mike Johnson', studentId: 'ST003', gpa: 3.9, attendance: 92, courses: 3 },
+    { id: 4, name: 'Sarah Wilson', studentId: 'ST004', gpa: 3.7, attendance: 90, courses: 4 },
+    { id: 5, name: 'David Brown', studentId: 'ST005', gpa: 3.5, attendance: 85, courses: 3 },
+    { id: 6, name: 'Emily Davis', studentId: 'ST006', gpa: 3.9, attendance: 97, courses: 4 }
+  ]);
+
   const handleTakeAttendance = () => {
     navigate('/attendance');
     toast.success('Opening attendance system');
   };
 
-  const createAnnouncement = () => {
-    setShowAnnouncementModal(true);
+  const createAnnouncement = (announcementData: any) => {
+    const newAnnouncement = {
+      id: Date.now(),
+      title: announcementData.title,
+      content: announcementData.content,
+      priority: announcementData.priority,
+      pdfFile: announcementPdf?.name || null,
+      timestamp: new Date().toLocaleString(),
+      author: facultyData.name
+    };
+
+    // Add to faculty announcements
+    setAnnouncements(prev => [newAnnouncement, ...prev]);
+
+    // Add to student announcements (simulate real-time)
+    const studentAnnouncements = JSON.parse(localStorage.getItem('student-announcements') || '[]');
+    const studentAnnouncement = {
+      id: newAnnouncement.id,
+      title: newAnnouncement.title,
+      content: newAnnouncement.content,
+      time: 'Just now',
+      priority: newAnnouncement.priority,
+      hasAttachment: !!newAnnouncement.pdfFile
+    };
+    localStorage.setItem('student-announcements', JSON.stringify([studentAnnouncement, ...studentAnnouncements]));
+
+    setShowAnnouncementModal(false);
+    setAnnouncementPdf(null);
+    toast.success('Announcement sent to all students!');
   };
 
-  const gradeAssignments = () => {
-    setShowGradeModal(true);
-    toast.success('Opening grading interface');
+  const startGrading = (assignment: any) => {
+    toast.success(`Starting grading for ${assignment.title}`);
+    // Simulate grading interface
+    setTimeout(() => {
+      toast.success('Grading interface opened');
+    }, 1000);
   };
 
   const viewStudentProgress = () => {
@@ -125,34 +177,41 @@ const FacultyDashboard: React.FC = () => {
     toast.success('Generating course report...');
   };
 
-  const scheduleOfficeHours = () => {
-    toast.success('Opening office hours scheduler...');
-    setTimeout(() => {
-      toast.success('Office hours scheduled successfully!');
-    }, 2000);
+  const uploadMaterials = () => {
+    setShowUploadModal(true);
   };
 
-  const uploadMaterials = () => {
-    toast.success('Opening file upload interface...');
+  const handleFileUpload = () => {
+    if (selectedFiles.length === 0) {
+      toast.error('Please select files to upload');
+      return;
+    }
+
+    toast.success(`Uploading ${selectedFiles.length} file(s)...`);
+    
     setTimeout(() => {
       toast.success('Course materials uploaded successfully!');
+      setShowUploadModal(false);
+      setSelectedFiles([]);
     }, 2000);
   };
 
-  const sendMessage = () => {
-    toast.success('Opening messaging interface...');
-    navigate('/messages');
+  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(event.target.files || []);
+    setSelectedFiles(prev => [...prev, ...files]);
   };
 
-  const addTask = (taskName: string) => {
-    const newTask = {
-      id: Date.now(),
-      task: taskName,
-      dueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-      priority: 'medium' as const
-    };
-    setPendingTasks(prev => [newTask, ...prev]);
-    toast.success('Task added successfully!');
+  const removeFile = (index: number) => {
+    setSelectedFiles(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const handleAnnouncementPdfSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file && file.type === 'application/pdf') {
+      setAnnouncementPdf(file);
+    } else {
+      toast.error('Please select a PDF file');
+    }
   };
 
   const completeTask = (taskId: number) => {
@@ -203,7 +262,7 @@ const FacultyDashboard: React.FC = () => {
               Take Attendance
             </button>
             <button 
-              onClick={createAnnouncement}
+              onClick={() => setShowAnnouncementModal(true)}
               className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-medium transition-colors flex items-center"
             >
               <Plus className="h-4 w-4 mr-2" />
@@ -215,7 +274,7 @@ const FacultyDashboard: React.FC = () => {
         {/* Quick Actions */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <button
-            onClick={gradeAssignments}
+            onClick={() => setShowGradeModal(true)}
             className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg hover:bg-blue-100 dark:hover:bg-blue-900/40 transition-colors"
           >
             <Award className="h-6 w-6 text-blue-600 dark:text-blue-400 mb-2" />
@@ -433,12 +492,6 @@ const FacultyDashboard: React.FC = () => {
           >
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Pending Tasks</h3>
-              <button
-                onClick={() => addTask('New Task')}
-                className="text-blue-600 hover:text-blue-800 text-sm font-medium"
-              >
-                Add Task
-              </button>
             </div>
             <div className="space-y-4">
               {pendingTasks.length > 0 ? (
@@ -487,7 +540,7 @@ const FacultyDashboard: React.FC = () => {
               <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Student Messages</h3>
               <div className="flex items-center space-x-2">
                 <button
-                  onClick={sendMessage}
+                  onClick={() => navigate('/messages')}
                   className="text-blue-600 hover:text-blue-800 text-sm font-medium"
                 >
                   View All
@@ -555,17 +608,37 @@ const FacultyDashboard: React.FC = () => {
                   onClick={() => setShowGradeModal(false)}
                   className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
                 >
-                  ×
+                  <X className="h-6 w-6" />
                 </button>
               </div>
               <div className="space-y-4">
-                <div className="p-4 border border-gray-200 dark:border-gray-700 rounded-lg">
-                  <h3 className="font-medium text-gray-900 dark:text-white">CS101 Assignment 3</h3>
-                  <p className="text-sm text-gray-600 dark:text-gray-300">24 submissions pending review</p>
-                  <button className="mt-2 bg-blue-600 text-white px-4 py-2 rounded-lg text-sm">
-                    Start Grading
-                  </button>
-                </div>
+                {gradingAssignments.map((assignment) => (
+                  <div key={assignment.id} className="p-4 border border-gray-200 dark:border-gray-700 rounded-lg">
+                    <div className="flex justify-between items-start mb-3">
+                      <div>
+                        <h3 className="font-medium text-gray-900 dark:text-white">{assignment.title}</h3>
+                        <p className="text-sm text-gray-600 dark:text-gray-300">{assignment.course}</p>
+                      </div>
+                      <span className="px-2 py-1 bg-orange-100 dark:bg-orange-900/20 text-orange-700 dark:text-orange-300 rounded-full text-xs">
+                        {assignment.pending} pending
+                      </span>
+                    </div>
+                    <p className="text-sm text-gray-600 dark:text-gray-300 mb-3">
+                      {assignment.submissions} total submissions • {assignment.pending} pending review
+                    </p>
+                    <div className="flex space-x-2">
+                      <button 
+                        onClick={() => startGrading(assignment)}
+                        className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-blue-700 transition-colors"
+                      >
+                        Start Grading
+                      </button>
+                      <button className="bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 px-4 py-2 rounded-lg text-sm hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors">
+                        View Submissions
+                      </button>
+                    </div>
+                  </div>
+                ))}
               </div>
             </motion.div>
           </div>
@@ -584,27 +657,58 @@ const FacultyDashboard: React.FC = () => {
                   onClick={() => setShowAnnouncementModal(false)}
                   className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
                 >
-                  ×
+                  <X className="h-6 w-6" />
                 </button>
               </div>
               <form onSubmit={(e) => {
                 e.preventDefault();
-                setShowAnnouncementModal(false);
-                toast.success('Announcement sent to all students!');
+                const formData = new FormData(e.target as HTMLFormElement);
+                createAnnouncement({
+                  title: formData.get('title'),
+                  content: formData.get('content'),
+                  priority: formData.get('priority')
+                });
               }}>
                 <div className="space-y-4">
                   <input
+                    name="title"
                     type="text"
                     placeholder="Announcement title"
                     className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500"
                     required
                   />
                   <textarea
+                    name="content"
                     rows={4}
                     placeholder="Announcement content"
                     className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500"
                     required
                   ></textarea>
+                  <select
+                    name="priority"
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500"
+                    required
+                  >
+                    <option value="normal">Normal Priority</option>
+                    <option value="high">High Priority</option>
+                    <option value="urgent">Urgent</option>
+                  </select>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Attach PDF (Optional)
+                    </label>
+                    <input
+                      type="file"
+                      accept=".pdf"
+                      onChange={handleAnnouncementPdfSelect}
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500"
+                    />
+                    {announcementPdf && (
+                      <p className="text-sm text-green-600 dark:text-green-400 mt-1">
+                        Selected: {announcementPdf.name}
+                      </p>
+                    )}
+                  </div>
                 </div>
                 <div className="flex justify-end space-x-4 mt-6">
                   <button
@@ -622,6 +726,195 @@ const FacultyDashboard: React.FC = () => {
                   </button>
                 </div>
               </form>
+            </motion.div>
+          </div>
+        )}
+
+        {showStudentModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="bg-white dark:bg-gray-800 rounded-xl p-6 w-full max-w-4xl max-h-[80vh] overflow-y-auto"
+            >
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-xl font-bold text-gray-900 dark:text-white">Student Progress</h2>
+                <button
+                  onClick={() => setShowStudentModal(false)}
+                  className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                >
+                  <X className="h-6 w-6" />
+                </button>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {studentProgress.map((student) => (
+                  <div key={student.id} className="p-4 border border-gray-200 dark:border-gray-700 rounded-lg">
+                    <div className="flex items-center space-x-3 mb-3">
+                      <div className="w-10 h-10 rounded-full bg-gradient-to-r from-blue-500 to-purple-600 flex items-center justify-center">
+                        <span className="text-white font-medium text-sm">
+                          {student.name.charAt(0)}
+                        </span>
+                      </div>
+                      <div>
+                        <h3 className="font-medium text-gray-900 dark:text-white">{student.name}</h3>
+                        <p className="text-sm text-gray-500 dark:text-gray-400">{student.studentId}</p>
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <div className="flex justify-between">
+                        <span className="text-sm text-gray-600 dark:text-gray-300">GPA:</span>
+                        <span className="text-sm font-medium text-gray-900 dark:text-white">{student.gpa}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-sm text-gray-600 dark:text-gray-300">Attendance:</span>
+                        <span className="text-sm font-medium text-gray-900 dark:text-white">{student.attendance}%</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-sm text-gray-600 dark:text-gray-300">Courses:</span>
+                        <span className="text-sm font-medium text-gray-900 dark:text-white">{student.courses}</span>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </motion.div>
+          </div>
+        )}
+
+        {showReportModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="bg-white dark:bg-gray-800 rounded-xl p-6 w-full max-w-2xl"
+            >
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-xl font-bold text-gray-900 dark:text-white">Course Reports</h2>
+                <button
+                  onClick={() => setShowReportModal(false)}
+                  className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                >
+                  <X className="h-6 w-6" />
+                </button>
+              </div>
+              <div className="space-y-4">
+                <div className="grid grid-cols-3 gap-4">
+                  <div className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg text-center">
+                    <h3 className="font-medium text-blue-900 dark:text-blue-300">Total Students</h3>
+                    <p className="text-2xl font-bold text-blue-600">{facultyData.totalStudents}</p>
+                  </div>
+                  <div className="p-4 bg-green-50 dark:bg-green-900/20 rounded-lg text-center">
+                    <h3 className="font-medium text-green-900 dark:text-green-300">Active Courses</h3>
+                    <p className="text-2xl font-bold text-green-600">{facultyData.activeCourses}</p>
+                  </div>
+                  <div className="p-4 bg-orange-50 dark:bg-orange-900/20 rounded-lg text-center">
+                    <h3 className="font-medium text-orange-900 dark:text-orange-300">Avg. Attendance</h3>
+                    <p className="text-2xl font-bold text-orange-600">88.3%</p>
+                  </div>
+                </div>
+                <div className="p-4 border border-gray-200 dark:border-gray-700 rounded-lg">
+                  <h3 className="font-medium text-gray-900 dark:text-white mb-2">Course Performance Summary</h3>
+                  <div className="space-y-2">
+                    {courses.map((course) => (
+                      <div key={course.id} className="flex justify-between items-center">
+                        <span className="text-sm text-gray-600 dark:text-gray-300">{course.code}</span>
+                        <span className="text-sm font-medium text-gray-900 dark:text-white">{course.attendanceRate}% attendance</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+              <div className="flex justify-end space-x-4 mt-6">
+                <button
+                  onClick={() => setShowReportModal(false)}
+                  className="px-4 py-2 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+                >
+                  Close
+                </button>
+                <button
+                  onClick={() => {
+                    toast.success('Report downloaded successfully!');
+                    setShowReportModal(false);
+                  }}
+                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors flex items-center"
+                >
+                  <Download className="h-4 w-4 mr-2" />
+                  Download PDF
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+
+        {showUploadModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="bg-white dark:bg-gray-800 rounded-xl p-6 w-full max-w-md"
+            >
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-xl font-bold text-gray-900 dark:text-white">Upload Course Materials</h2>
+                <button
+                  onClick={() => setShowUploadModal(false)}
+                  className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                >
+                  <X className="h-6 w-6" />
+                </button>
+              </div>
+              
+              <div className="space-y-4">
+                <div className="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-6 text-center">
+                  <Upload className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                  <p className="text-gray-600 dark:text-gray-300 mb-2">Drag & drop files here or click to browse</p>
+                  <input
+                    type="file"
+                    multiple
+                    onChange={handleFileSelect}
+                    className="hidden"
+                    id="file-upload"
+                  />
+                  <label
+                    htmlFor="file-upload"
+                    className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg cursor-pointer inline-block transition-colors"
+                  >
+                    Choose Files
+                  </label>
+                </div>
+
+                {selectedFiles.length > 0 && (
+                  <div className="space-y-2">
+                    <h3 className="font-medium text-gray-900 dark:text-white">Selected Files:</h3>
+                    {selectedFiles.map((file, index) => (
+                      <div key={index} className="flex items-center justify-between p-2 bg-gray-50 dark:bg-gray-700 rounded">
+                        <span className="text-sm text-gray-700 dark:text-gray-300 truncate">{file.name}</span>
+                        <button
+                          onClick={() => removeFile(index)}
+                          className="text-red-500 hover:text-red-700 ml-2"
+                        >
+                          <X className="h-4 w-4" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div className="flex justify-end space-x-4 mt-6">
+                <button
+                  onClick={() => setShowUploadModal(false)}
+                  className="px-4 py-2 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleFileUpload}
+                  disabled={selectedFiles.length === 0}
+                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white rounded-lg transition-colors"
+                >
+                  Upload Files
+                </button>
+              </div>
             </motion.div>
           </div>
         )}
