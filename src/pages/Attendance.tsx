@@ -18,6 +18,12 @@ const Attendance: React.FC = () => {
   const [timeRemaining, setTimeRemaining] = useState(0);
   const [attendanceRecords, setAttendanceRecords] = useState<any[]>([]);
 
+  // Global attendance storage for all sessions
+  const [globalAttendance, setGlobalAttendance] = useState(() => {
+    const stored = localStorage.getItem('global-attendance-records');
+    return stored ? JSON.parse(stored) : [];
+  });
+
   const [students, setStudents] = useState([
     { id: 1, name: 'John Doe', rollNo: 'CS001', status: 'present' },
     { id: 2, name: 'Jane Smith', rollNo: 'CS002', status: 'absent' },
@@ -38,6 +44,11 @@ const Attendance: React.FC = () => {
     { date: '2024-03-12', course: 'CS301', present: 38, absent: 4, rate: 90.5 },
     { date: '2024-03-11', course: 'CS101', present: 40, absent: 5, rate: 88.9 }
   ];
+
+  // Save global attendance to localStorage whenever it changes
+  useEffect(() => {
+    localStorage.setItem('global-attendance-records', JSON.stringify(globalAttendance));
+  }, [globalAttendance]);
 
   // Get user location
   useEffect(() => {
@@ -95,6 +106,14 @@ const Attendance: React.FC = () => {
     return () => clearInterval(interval);
   }, [qrSession, timeRemaining]);
 
+  // Load attendance records for current user
+  useEffect(() => {
+    const userRecords = globalAttendance.filter(record => 
+      record.teacherId === user?.id || record.studentAttendance?.some((att: any) => att.studentId === user?.id)
+    );
+    setAttendanceRecords(userRecords);
+  }, [globalAttendance, user?.id]);
+
   const generateQRSession = async () => {
     if (!selectedCourse) {
       toast.error('Please select a course first');
@@ -117,7 +136,8 @@ const Attendance: React.FC = () => {
       },
       validFor: 300, // 5 minutes
       teacher: user?.name,
-      teacherId: user?.id
+      teacherId: user?.id,
+      expiresAt: Date.now() + (300 * 1000) // 5 minutes from now
     };
 
     try {
@@ -137,18 +157,21 @@ const Attendance: React.FC = () => {
       setTimeRemaining(300);
       toast.success('QR session created! Valid for 5 minutes');
 
-      // Add to attendance records
+      // Add to global attendance records
       const newRecord = {
         id: Date.now(),
+        sessionId: sessionData.id,
         course: selectedCourse,
         date: selectedDate,
         teacher: user?.name,
-        sessionId: sessionData.id,
-        studentsPresent: [],
+        teacherId: user?.id,
+        studentAttendance: [],
         status: 'active',
-        createdAt: new Date().toLocaleString()
+        createdAt: new Date().toLocaleString(),
+        expiresAt: sessionData.expiresAt
       };
-      setAttendanceRecords(prev => [newRecord, ...prev]);
+      
+      setGlobalAttendance(prev => [newRecord, ...prev]);
 
     } catch (error) {
       toast.error('Failed to generate QR code');
@@ -158,6 +181,12 @@ const Attendance: React.FC = () => {
   const scanQRCode = () => {
     if (!qrSession) {
       toast.error('No active QR session');
+      return;
+    }
+
+    // Check if session has expired
+    if (Date.now() > qrSession.expiresAt) {
+      toast.error('QR session has expired');
       return;
     }
 
@@ -191,24 +220,36 @@ const Attendance: React.FC = () => {
       return;
     }
 
-    // Mark attendance
-    toast.success('Attendance marked successfully!');
-    
-    // Update attendance record
-    setAttendanceRecords(prev => prev.map(record => {
+    // Mark attendance for student
+    const attendanceEntry = {
+      studentId: user?.id,
+      studentName: user?.name,
+      studentRollNo: user?.studentId || 'ST2024001',
+      timestamp: new Date().toLocaleString(),
+      method: 'QR Scan',
+      location: location,
+      scanTime: Date.now()
+    };
+
+    // Update global attendance records
+    setGlobalAttendance(prev => prev.map(record => {
       if (record.sessionId === qrSession.id) {
+        // Check if student already marked attendance
+        const alreadyMarked = record.studentAttendance.some((att: any) => att.studentId === user?.id);
+        if (alreadyMarked) {
+          toast.warning('Attendance already marked for this session');
+          return record;
+        }
+
         return {
           ...record,
-          studentsPresent: [...record.studentsPresent, {
-            studentId: user?.id,
-            studentName: user?.name,
-            timestamp: new Date().toLocaleString(),
-            method: 'QR Scan'
-          }]
+          studentAttendance: [...record.studentAttendance, attendanceEntry]
         };
       }
       return record;
     }));
+
+    toast.success('Attendance marked successfully!');
   };
 
   const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number) => {
@@ -244,29 +285,35 @@ const Attendance: React.FC = () => {
       return;
     }
     
-    // Create attendance record
+    // Create attendance record for manual attendance
     const presentStudents = students.filter(s => s.status === 'present');
     const absentStudents = students.filter(s => s.status === 'absent');
     const lateStudents = students.filter(s => s.status === 'late');
 
     const newRecord = {
       id: Date.now(),
+      sessionId: `manual-${Date.now()}`,
       course: selectedCourse,
       date: selectedDate,
       teacher: user?.name,
+      teacherId: user?.id,
       present: presentStudents.length,
       absent: absentStudents.length,
       late: lateStudents.length,
       rate: ((presentStudents.length + lateStudents.length) / students.length * 100).toFixed(1),
       method: 'Manual',
       createdAt: new Date().toLocaleString(),
-      students: students.map(s => ({
-        ...s,
-        timestamp: new Date().toLocaleString()
+      studentAttendance: students.map(s => ({
+        studentId: s.id,
+        studentName: s.name,
+        studentRollNo: s.rollNo,
+        status: s.status,
+        timestamp: new Date().toLocaleString(),
+        method: 'Manual'
       }))
     };
 
-    setAttendanceRecords(prev => [newRecord, ...prev]);
+    setGlobalAttendance(prev => [newRecord, ...prev]);
     toast.success('Attendance saved successfully!');
   };
 
@@ -448,6 +495,17 @@ const Attendance: React.FC = () => {
                     >
                       {qrSession ? 'Mark My Attendance' : 'Waiting for QR Session'}
                     </button>
+                    
+                    {qrSession && (
+                      <div className="mt-4 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+                        <p className="text-sm text-blue-700 dark:text-blue-300">
+                          Active session for {qrSession.course} - {qrSession.date}
+                        </p>
+                        <p className="text-xs text-blue-600 dark:text-blue-400 mt-1">
+                          Time remaining: {formatTime(timeRemaining)}
+                        </p>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
@@ -646,7 +704,7 @@ const Attendance: React.FC = () => {
             {/* Real-time Attendance Records */}
             <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm">
               <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-6">
-                Real-time Attendance Records
+                {user?.role === 'faculty' ? 'My Attendance Sessions' : 'My Attendance Records'}
               </h3>
               
               {attendanceRecords.length > 0 ? (
@@ -659,7 +717,7 @@ const Attendance: React.FC = () => {
                             {record.course} - {record.date}
                           </h4>
                           <p className="text-sm text-gray-500 dark:text-gray-400">
-                            Teacher: {record.teacher} | Created: {record.createdAt}
+                            {user?.role === 'faculty' ? `Created: ${record.createdAt}` : `Teacher: ${record.teacher}`}
                           </p>
                         </div>
                         <span className={`px-3 py-1 rounded-full text-sm font-medium border ${getStatusColor(record.status || 'completed')}`}>
@@ -667,32 +725,39 @@ const Attendance: React.FC = () => {
                         </span>
                       </div>
                       
-                      {record.present !== undefined && (
-                        <div className="grid grid-cols-3 gap-4 text-sm">
-                          <div className="text-green-600 dark:text-green-400">
-                            Present: {record.present}
-                          </div>
-                          <div className="text-red-600 dark:text-red-400">
-                            Absent: {record.absent}
-                          </div>
-                          <div className="text-blue-600 dark:text-blue-400">
-                            Rate: {record.rate}%
-                          </div>
-                        </div>
-                      )}
-                      
-                      {record.studentsPresent && record.studentsPresent.length > 0 && (
-                        <div className="mt-2">
-                          <p className="text-sm text-gray-600 dark:text-gray-300">
-                            Students Present: {record.studentsPresent.length}
+                      {user?.role === 'faculty' && record.studentAttendance && (
+                        <div className="mt-3">
+                          <p className="text-sm text-gray-600 dark:text-gray-300 mb-2">
+                            Students Present: {record.studentAttendance.length}
                           </p>
-                          <div className="mt-1 flex flex-wrap gap-1">
-                            {record.studentsPresent.map((student: any, idx: number) => (
+                          <div className="flex flex-wrap gap-2">
+                            {record.studentAttendance.slice(0, 5).map((student: any, idx: number) => (
                               <span key={idx} className="px-2 py-1 bg-green-100 dark:bg-green-900/20 text-green-700 dark:text-green-300 text-xs rounded">
                                 {student.studentName}
                               </span>
                             ))}
+                            {record.studentAttendance.length > 5 && (
+                              <span className="px-2 py-1 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 text-xs rounded">
+                                +{record.studentAttendance.length - 5} more
+                              </span>
+                            )}
                           </div>
+                        </div>
+                      )}
+
+                      {user?.role === 'student' && record.studentAttendance && (
+                        <div className="mt-3">
+                          {record.studentAttendance.find((att: any) => att.studentId === user?.id) ? (
+                            <div className="flex items-center text-green-600 dark:text-green-400">
+                              <CheckCircle className="h-4 w-4 mr-2" />
+                              <span className="text-sm">Present - {record.studentAttendance.find((att: any) => att.studentId === user?.id)?.timestamp}</span>
+                            </div>
+                          ) : (
+                            <div className="flex items-center text-red-600 dark:text-red-400">
+                              <XCircle className="h-4 w-4 mr-2" />
+                              <span className="text-sm">Absent</span>
+                            </div>
+                          )}
                         </div>
                       )}
                     </div>
@@ -703,7 +768,10 @@ const Attendance: React.FC = () => {
                   <Calendar className="h-12 w-12 text-gray-400 mx-auto mb-4" />
                   <p className="text-gray-500 dark:text-gray-400">No attendance records yet</p>
                   <p className="text-sm text-gray-400 dark:text-gray-500">
-                    Create a QR session or take manual attendance to see records here
+                    {user?.role === 'faculty' 
+                      ? 'Create a QR session or take manual attendance to see records here'
+                      : 'Your attendance records will appear here'
+                    }
                   </p>
                 </div>
               )}
