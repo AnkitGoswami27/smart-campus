@@ -616,3 +616,5 @@ const StudentDashboard: React.FC = () => {
 };
 
 export default StudentDashboard;
+
+// Note: Ensure you have the necessary dependencies installed:
