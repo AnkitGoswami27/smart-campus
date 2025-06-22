@@ -57,14 +57,16 @@ const Attendance: React.FC = () => {
         (position) => {
           setLocation({
             latitude: position.coords.latitude,
-            longitude: position.coords.longitude
+            longitude: position.coords.longitude,
+            accuracy: position.coords.accuracy
           });
           toast.success('Location verified');
         },
         (error) => {
           console.error('Error getting location:', error);
           toast.error('Location access required for attendance');
-        }
+        },
+        { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 }
       );
     }
   }, []);
@@ -74,7 +76,9 @@ const Attendance: React.FC = () => {
     const checkWifi = () => {
       // Simulate campus WiFi detection based on connection info
       const connection = (navigator as any).connection || (navigator as any).mozConnection || (navigator as any).webkitConnection;
-      const isConnected = connection ? connection.effectiveType === '4g' || Math.random() > 0.3 : Math.random() > 0.3;
+      const isConnected = connection ? 
+        (connection.effectiveType === '4g' || connection.effectiveType === 'wifi') && Math.random() > 0.2 : 
+        Math.random() > 0.3;
       setIsOnCampusWifi(isConnected);
       
       if (isConnected) {
@@ -94,6 +98,14 @@ const Attendance: React.FC = () => {
       interval = setInterval(() => {
         setTimeRemaining(prev => {
           if (prev <= 1) {
+            // Update session status to expired
+            setGlobalAttendance(prevAttendance => 
+              prevAttendance.map(record => 
+                record.sessionId === qrSession.id 
+                  ? { ...record, status: 'expired' }
+                  : record
+              )
+            );
             setQrSession(null);
             setQrCodeDataURL('');
             toast.error('QR session expired');
@@ -125,23 +137,28 @@ const Attendance: React.FC = () => {
       return;
     }
 
+    if (!location) {
+      toast.error('Location access required to create QR session');
+      return;
+    }
+
+    const sessionId = Math.random().toString(36).substring(2, 15);
+    const expiresAt = Date.now() + (300 * 1000); // 5 minutes from now
+
     const sessionData = {
-      id: Math.random().toString(36).substring(2, 15),
+      id: sessionId,
       course: selectedCourse,
       date: selectedDate,
       timestamp: Date.now(),
-      location: location || {
-        latitude: 40.7128, // Default coordinates
-        longitude: -74.0060
-      },
+      location: location,
       validFor: 300, // 5 minutes
       teacher: user?.name,
       teacherId: user?.id,
-      expiresAt: Date.now() + (300 * 1000) // 5 minutes from now
+      expiresAt: expiresAt
     };
 
     try {
-      // Generate actual QR code
+      // Generate actual QR code with session data
       const qrData = JSON.stringify(sessionData);
       const qrCodeURL = await QRCode.toDataURL(qrData, {
         width: 256,
@@ -160,7 +177,7 @@ const Attendance: React.FC = () => {
       // Add to global attendance records
       const newRecord = {
         id: Date.now(),
-        sessionId: sessionData.id,
+        sessionId: sessionId,
         course: selectedCourse,
         date: selectedDate,
         teacher: user?.name,
@@ -168,7 +185,8 @@ const Attendance: React.FC = () => {
         studentAttendance: [],
         status: 'active',
         createdAt: new Date().toLocaleString(),
-        expiresAt: sessionData.expiresAt
+        expiresAt: expiresAt,
+        location: location
       };
       
       setGlobalAttendance(prev => [newRecord, ...prev]);
@@ -176,80 +194,6 @@ const Attendance: React.FC = () => {
     } catch (error) {
       toast.error('Failed to generate QR code');
     }
-  };
-
-  const scanQRCode = () => {
-    if (!qrSession) {
-      toast.error('No active QR session');
-      return;
-    }
-
-    // Check if session has expired
-    if (Date.now() > qrSession.expiresAt) {
-      toast.error('QR session has expired');
-      return;
-    }
-
-    // Check location (within 100m)
-    if (location && qrSession.location) {
-      const distance = calculateDistance(
-        location.latitude,
-        location.longitude,
-        qrSession.location.latitude,
-        qrSession.location.longitude
-      );
-
-      if (distance > 100) {
-        toast.error('You must be within 100m of the classroom');
-        return;
-      }
-    } else {
-      toast.error('Location verification required');
-      return;
-    }
-
-    // Check WiFi
-    if (!isOnCampusWifi) {
-      toast.error('You must be connected to campus WiFi');
-      return;
-    }
-
-    // Check time window
-    if (timeRemaining <= 0) {
-      toast.error('QR session has expired');
-      return;
-    }
-
-    // Mark attendance for student
-    const attendanceEntry = {
-      studentId: user?.id,
-      studentName: user?.name,
-      studentRollNo: user?.studentId || 'ST2024001',
-      timestamp: new Date().toLocaleString(),
-      method: 'QR Scan',
-      location: location,
-      scanTime: Date.now()
-    };
-
-    // Update global attendance records
-    setGlobalAttendance(prev => prev.map(record => {
-      if (record.sessionId === qrSession.id) {
-        // Check if student already marked attendance
-        const alreadyMarked = record.studentAttendance.some((att: any) => att.studentId === user?.id);
-        if (alreadyMarked) {
-          toast.warning('Attendance already marked for this session');
-          return record;
-        }
-
-        return {
-          ...record,
-          studentAttendance: [...record.studentAttendance, attendanceEntry]
-        };
-      }
-      return record;
-    }));
-
-    toast.success('Attendance marked successfully!');
   };
 
   const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number) => {
@@ -303,6 +247,7 @@ const Attendance: React.FC = () => {
       rate: ((presentStudents.length + lateStudents.length) / students.length * 100).toFixed(1),
       method: 'Manual',
       createdAt: new Date().toLocaleString(),
+      status: 'completed',
       studentAttendance: students.map(s => ({
         studentId: s.id,
         studentName: s.name,
@@ -350,6 +295,10 @@ const Attendance: React.FC = () => {
         return 'bg-yellow-50 text-yellow-700 border-yellow-200 dark:bg-yellow-900/20 dark:text-yellow-300 dark:border-yellow-800';
       case 'active':
         return 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/20 dark:text-blue-300 dark:border-blue-800';
+      case 'expired':
+        return 'bg-gray-50 text-gray-700 border-gray-200 dark:bg-gray-900/20 dark:text-gray-300 dark:border-gray-800';
+      case 'completed':
+        return 'bg-green-50 text-green-700 border-green-200 dark:bg-green-900/20 dark:text-green-300 dark:border-green-800';
       default:
         return 'bg-gray-50 text-gray-700 border-gray-200 dark:bg-gray-900/20 dark:text-gray-300 dark:border-gray-800';
     }
@@ -426,7 +375,7 @@ const Attendance: React.FC = () => {
               {/* Session Creation */}
               <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm">
                 <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
-                  {user?.role === 'faculty' ? 'Create Attendance Session' : 'Scan QR Code'}
+                  {user?.role === 'faculty' ? 'Create Attendance Session' : 'Active QR Sessions'}
                 </h3>
                 
                 {user?.role === 'faculty' && (
@@ -463,7 +412,7 @@ const Attendance: React.FC = () => {
                     
                     <button
                       onClick={generateQRSession}
-                      disabled={!selectedCourse || !selectedDate}
+                      disabled={!selectedCourse || !selectedDate || !location}
                       className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white px-6 py-2 rounded-lg font-medium transition-colors"
                     >
                       Generate QR Session
@@ -488,24 +437,15 @@ const Attendance: React.FC = () => {
 
                 {user?.role === 'student' && (
                   <div className="text-center">
-                    <button
-                      onClick={scanQRCode}
-                      disabled={!qrSession}
-                      className="bg-green-600 hover:bg-green-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white px-6 py-2 rounded-lg font-medium transition-colors"
-                    >
-                      {qrSession ? 'Mark My Attendance' : 'Waiting for QR Session'}
-                    </button>
-                    
-                    {qrSession && (
-                      <div className="mt-4 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
-                        <p className="text-sm text-blue-700 dark:text-blue-300">
-                          Active session for {qrSession.course} - {qrSession.date}
-                        </p>
-                        <p className="text-xs text-blue-600 dark:text-blue-400 mt-1">
-                          Time remaining: {formatTime(timeRemaining)}
-                        </p>
-                      </div>
-                    )}
+                    <div className="p-6 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg">
+                      <Scan className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                      <p className="text-gray-600 dark:text-gray-300 mb-4">
+                        Use the QR scanner in your dashboard to mark attendance
+                      </p>
+                      <p className="text-sm text-gray-500 dark:text-gray-400">
+                        Make sure you're connected to campus WiFi and location is enabled
+                      </p>
+                    </div>
                   </div>
                 )}
               </div>
@@ -535,7 +475,7 @@ const Attendance: React.FC = () => {
                       <div className="text-center">
                         <QrCode className="h-16 w-16 text-gray-400 mx-auto mb-2" />
                         <p className="text-sm text-gray-500 dark:text-gray-400">
-                          {user?.role === 'faculty' ? 'Generate session to display QR' : 'Waiting for QR code'}
+                          {user?.role === 'faculty' ? 'Generate session to display QR' : 'No active QR session'}
                         </p>
                       </div>
                     )}
