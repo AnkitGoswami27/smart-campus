@@ -22,10 +22,12 @@ import {
   Download,
   Users,
   Target,
-  BarChart3
+  BarChart3,
+  Send,
+  Plus
 } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import toast from 'react-hot-toast';
 
 const StudentDashboard: React.FC = () => {
@@ -47,6 +49,18 @@ const StudentDashboard: React.FC = () => {
     qrValid: false,
     timeValid: false
   });
+
+  // Enhanced messaging system
+  const [showMessageModal, setShowMessageModal] = useState(false);
+  const [messageRecipient, setMessageRecipient] = useState('');
+  const [messageSubject, setMessageSubject] = useState('');
+  const [messageContent, setMessageContent] = useState('');
+  const [messagePriority, setMessagePriority] = useState('normal');
+  
+  // Message management
+  const [studentMessages, setStudentMessages] = useLocalStorage('student-messages', []);
+  const [sentMessages, setSentMessages] = useLocalStorage('student-sent-messages', []);
+  const [messageHistory, setMessageHistory] = useLocalStorage('student-message-history', []);
 
   // Get global attendance records
   const [globalAttendance] = useLocalStorage('global-attendance-records', []);
@@ -125,6 +139,139 @@ const StudentDashboard: React.FC = () => {
     { name: 'Week 4', attendance: 85 },
     { name: 'Week 5', attendance: 90 }
   ];
+
+  // Initialize student messages if empty
+  useEffect(() => {
+    if (studentMessages.length === 0) {
+      setStudentMessages([
+        {
+          id: 1,
+          from: 'Dr. Sarah Johnson',
+          fromRole: 'Faculty',
+          subject: 'Assignment Extension Approved',
+          content: 'Your request for assignment extension has been approved. New deadline is March 25th.',
+          timestamp: new Date(Date.now() - 30 * 60 * 1000).toLocaleString(),
+          priority: 'normal',
+          read: false,
+          type: 'individual'
+        },
+        {
+          id: 2,
+          from: 'Prof. Michael Brown',
+          fromRole: 'Faculty',
+          subject: 'Lab Session Rescheduled',
+          content: 'Tomorrow\'s lab session has been moved to 3:00 PM due to technical maintenance.',
+          timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000).toLocaleString(),
+          priority: 'high',
+          read: false,
+          type: 'individual'
+        },
+        {
+          id: 3,
+          from: 'Admin Office',
+          fromRole: 'Admin',
+          subject: 'Fee Payment Reminder',
+          content: 'This is a reminder that your semester fees are due by March 20th. Please make the payment to avoid late fees.',
+          timestamp: new Date(Date.now() - 24 * 60 * 60 * 1000).toLocaleString(),
+          priority: 'medium',
+          read: true,
+          type: 'announcement'
+        }
+      ]);
+    }
+  }, [studentMessages.length, setStudentMessages]);
+
+  // Enhanced messaging functions
+  const sendMessage = () => {
+    if (!messageRecipient || !messageSubject || !messageContent) {
+      toast.error('Please fill in all required fields');
+      return;
+    }
+
+    const newMessage = {
+      id: Date.now(),
+      to: messageRecipient,
+      toRole: messageRecipient.includes('Dr.') || messageRecipient.includes('Prof.') ? 'Faculty' : 'Admin',
+      subject: messageSubject,
+      content: messageContent,
+      timestamp: new Date().toLocaleString(),
+      priority: messagePriority,
+      status: 'sent',
+      type: 'individual'
+    };
+
+    // Add to sent messages
+    setSentMessages(prev => [newMessage, ...prev]);
+
+    // Add to message history
+    setMessageHistory(prev => [
+      {
+        ...newMessage,
+        direction: 'sent',
+        participant: messageRecipient
+      },
+      ...prev
+    ]);
+
+    // Simulate adding to recipient's inbox (for demo purposes)
+    if (messageRecipient.includes('Dr.') || messageRecipient.includes('Prof.')) {
+      const facultyMessages = JSON.parse(localStorage.getItem('faculty-student-messages') || '[]');
+      const incomingMessage = {
+        id: Date.now() + 1,
+        from: user?.name || 'Student',
+        subject: messageSubject,
+        time: 'Just now',
+        unread: true,
+        content: messageContent,
+        priority: messagePriority
+      };
+      localStorage.setItem('faculty-student-messages', JSON.stringify([incomingMessage, ...facultyMessages]));
+    }
+
+    toast.success('Message sent successfully!');
+    setShowMessageModal(false);
+    resetMessageForm();
+
+    // Simulate auto-reply after 3 seconds
+    setTimeout(() => {
+      const autoReply = {
+        id: Date.now() + 2,
+        from: messageRecipient,
+        fromRole: messageRecipient.includes('Dr.') || messageRecipient.includes('Prof.') ? 'Faculty' : 'Admin',
+        subject: `Re: ${messageSubject}`,
+        content: `Thank you for your message. I have received your inquiry and will respond within 24 hours.`,
+        timestamp: new Date().toLocaleString(),
+        priority: 'normal',
+        read: false,
+        type: 'individual'
+      };
+      
+      setStudentMessages(prev => [autoReply, ...prev]);
+      toast.success('You have a new message!');
+    }, 3000);
+  };
+
+  const markMessageAsRead = (messageId: number) => {
+    setStudentMessages(prev => prev.map(msg => 
+      msg.id === messageId ? { ...msg, read: true } : msg
+    ));
+  };
+
+  const deleteMessage = (messageId: number) => {
+    setStudentMessages(prev => prev.filter(msg => msg.id !== messageId));
+    toast.success('Message deleted');
+  };
+
+  const resetMessageForm = () => {
+    setMessageRecipient('');
+    setMessageSubject('');
+    setMessageContent('');
+    setMessagePriority('normal');
+  };
+
+  const openMessagingModal = () => {
+    setShowMessageModal(true);
+  };
 
   // Get user location
   useEffect(() => {
@@ -427,6 +574,15 @@ const StudentDashboard: React.FC = () => {
     }
   };
 
+  const getMessagePriorityColor = (priority: string) => {
+    switch (priority) {
+      case 'high': return 'bg-red-50 text-red-700 border-red-200 dark:bg-red-900/20 dark:text-red-300';
+      case 'medium': return 'bg-yellow-50 text-yellow-700 border-yellow-200 dark:bg-yellow-900/20 dark:text-yellow-300';
+      case 'normal': return 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/20 dark:text-blue-300';
+      default: return 'bg-gray-50 text-gray-700 border-gray-200 dark:bg-gray-900/20 dark:text-gray-300';
+    }
+  };
+
   return (
     <Layout>
       <div className="p-6 space-y-6">
@@ -604,7 +760,7 @@ const StudentDashboard: React.FC = () => {
           </motion.div>
         </div>
 
-        {/* Courses, Assignments & Announcements */}
+        {/* Courses, Assignments & Messages */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -671,32 +827,63 @@ const StudentDashboard: React.FC = () => {
             className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm"
           >
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Announcements</h3>
-              <Bell className="h-5 w-5 text-gray-400" />
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Messages</h3>
+              <div className="flex items-center space-x-2">
+                <button
+                  onClick={openMessagingModal}
+                  className="p-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
+                >
+                  <Plus className="h-4 w-4" />
+                </button>
+                <MessageSquare className="h-5 w-5 text-gray-400" />
+              </div>
             </div>
             <div className="space-y-4">
-              {studentAnnouncements.length > 0 ? (
-                studentAnnouncements.slice(0, 4).map((announcement: any) => (
-                  <div key={announcement.id} className="p-4 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+              {studentMessages.length > 0 ? (
+                studentMessages.slice(0, 4).map((message: any) => (
+                  <div 
+                    key={message.id} 
+                    className={`p-4 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors cursor-pointer ${
+                      !message.read ? 'bg-blue-50 dark:bg-blue-900/10' : ''
+                    }`}
+                    onClick={() => markMessageAsRead(message.id)}
+                  >
                     <div className="flex justify-between items-start mb-2">
-                      <h4 className="font-medium text-gray-900 dark:text-white">{announcement.title}</h4>
-                      <span className="text-xs text-gray-400">{announcement.time}</span>
-                    </div>
-                    <p className="text-sm text-gray-600 dark:text-gray-300 mb-2">{announcement.content}</p>
-                    {announcement.hasAttachment && (
-                      <div className="flex items-center text-xs text-blue-600 dark:text-blue-400">
-                        <FileText className="h-3 w-3 mr-1" />
-                        Attachment
+                      <div className="flex items-center space-x-2">
+                        <h4 className={`font-medium ${!message.read ? 'text-blue-900 dark:text-blue-300' : 'text-gray-900 dark:text-white'}`}>
+                          {message.from}
+                        </h4>
+                        {!message.read && <div className="w-2 h-2 bg-blue-500 rounded-full"></div>}
                       </div>
-                    )}
+                      <div className="flex items-center space-x-2">
+                        <span className={`px-2 py-1 rounded-full text-xs font-medium border ${getMessagePriorityColor(message.priority)}`}>
+                          {message.priority}
+                        </span>
+                        <span className="text-xs text-gray-400">{message.timestamp.split(' ')[1]}</span>
+                      </div>
+                    </div>
+                    <p className="text-sm font-medium text-gray-900 dark:text-white mb-1">{message.subject}</p>
+                    <p className="text-sm text-gray-600 dark:text-gray-300 line-clamp-2">{message.content}</p>
+                    <div className="flex justify-between items-center mt-2">
+                      <span className="text-xs text-gray-500 dark:text-gray-400">{message.fromRole}</span>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          deleteMessage(message.id);
+                        }}
+                        className="text-red-500 hover:text-red-700 text-xs"
+                      >
+                        Delete
+                      </button>
+                    </div>
                   </div>
                 ))
               ) : (
                 <div className="text-center py-8">
-                  <Bell className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                  <p className="text-gray-500 dark:text-gray-400">No announcements yet</p>
+                  <MessageSquare className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                  <p className="text-gray-500 dark:text-gray-400">No messages yet</p>
                   <p className="text-sm text-gray-400 dark:text-gray-500">
-                    Faculty announcements will appear here
+                    Messages from faculty will appear here
                   </p>
                 </div>
               )}
@@ -771,7 +958,7 @@ const StudentDashboard: React.FC = () => {
                         {verificationDetails.wifi && <CheckCircle className="w-4 h-4" />}
                       </div>
                       <div className={`flex items-center justify-center space-x-2 ${verificationDetails.location ? 'text-green-600' : 'text-gray-400'}`}>
-                        <MapPin className="w-4 h-4" />
+                        <MapPin className="w-4 w-4" />
                         <span className="text-sm">Location verification</span>
                         {verificationDetails.location && <CheckCircle className="w-4 h-4" />}
                       </div>
@@ -815,11 +1002,108 @@ const StudentDashboard: React.FC = () => {
             </motion.div>
           </div>
         )}
+
+        {/* Message Modal */}
+        {showMessageModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="bg-white dark:bg-gray-800 rounded-xl p-6 w-full max-w-md"
+            >
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-xl font-bold text-gray-900 dark:text-white">Send Message</h2>
+                <button
+                  onClick={() => setShowMessageModal(false)}
+                  className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                >
+                  <X className="h-6 w-6" />
+                </button>
+              </div>
+
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    To
+                  </label>
+                  <select
+                    value={messageRecipient}
+                    onChange={(e) => setMessageRecipient(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="">Select recipient...</option>
+                    <option value="Dr. Sarah Johnson">Dr. Sarah Johnson (CS101)</option>
+                    <option value="Prof. Michael Brown">Prof. Michael Brown (CS201)</option>
+                    <option value="Dr. Emily Davis">Dr. Emily Davis (CS301)</option>
+                    <option value="Prof. James Wilson">Prof. James Wilson (MATH201)</option>
+                    <option value="Admin Office">Admin Office</option>
+                    <option value="IT Support">IT Support</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Subject
+                  </label>
+                  <input
+                    type="text"
+                    value={messageSubject}
+                    onChange={(e) => setMessageSubject(e.target.value)}
+                    placeholder="Enter subject..."
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Priority
+                  </label>
+                  <select
+                    value={messagePriority}
+                    onChange={(e) => setMessagePriority(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="normal">Normal</option>
+                    <option value="medium">Medium</option>
+                    <option value="high">High</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Message
+                  </label>
+                  <textarea
+                    value={messageContent}
+                    onChange={(e) => setMessageContent(e.target.value)}
+                    rows={4}
+                    placeholder="Type your message..."
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+              </div>
+
+              <div className="flex justify-end space-x-4 mt-6">
+                <button
+                  onClick={() => setShowMessageModal(false)}
+                  className="px-4 py-2 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={sendMessage}
+                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors flex items-center"
+                >
+                  <Send className="h-4 w-4 mr-2" />
+                  Send Message
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
       </div>
     </Layout>
   );
 };
 
 export default StudentDashboard;
-
-// Note: Ensure you have the necessary dependencies installed:
