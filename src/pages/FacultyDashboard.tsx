@@ -161,14 +161,9 @@ const FacultyDashboard: React.FC = () => {
   };
 
   const startGrading = (assignment: any) => {
-    // Open a comprehensive grading interface
-    setShowGradeModal(false);
+    // Navigate to the comprehensive grading interface
+    navigate('/grading', { state: { assignment } });
     toast.success(`Opening grading interface for ${assignment.title}`);
-    
-    // Simulate opening grading interface with student submissions
-    setTimeout(() => {
-      toast.success('Grading interface loaded with student submissions');
-    }, 1000);
   };
 
   const viewStudentProgress = () => {
