@@ -8,6 +8,7 @@ import Dashboard from './pages/Dashboard';
 import StudentDashboard from './pages/StudentDashboard';
 import FacultyDashboard from './pages/FacultyDashboard';
 import AdminDashboard from './pages/AdminDashboard';
+import GradingInterface from './pages/GradingInterface';
 import Attendance from './pages/Attendance';
 import Courses from './pages/Courses';
 import Resources from './pages/Resources';
@@ -48,6 +49,12 @@ function App() {
               <Route path="/admin" element={
                 <ProtectedRoute role="admin">
                   <AdminDashboard />
+                </ProtectedRoute>
+              } />
+
+              <Route path="/grading" element={
+                <ProtectedRoute role="faculty">
+                  <GradingInterface />
                 </ProtectedRoute>
               } />
               
