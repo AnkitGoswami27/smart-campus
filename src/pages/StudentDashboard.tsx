@@ -22,7 +22,8 @@ import {
   Download,
   Users,
   Target,
-  BarChart3
+  BarChart3,
+  Settings
 } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import { motion } from 'framer-motion';
@@ -40,6 +41,8 @@ const StudentDashboard: React.FC = () => {
   const [scanResult, setScanResult] = useState<string>('');
   const [attendanceStatus, setAttendanceStatus] = useState<'idle' | 'scanning' | 'verifying' | 'success' | 'error'>('idle');
   const [location, setLocation] = useState<any>(null);
+  const [locationError, setLocationError] = useState<string>('');
+  const [locationPermissionDenied, setLocationPermissionDenied] = useState(false);
   const [isOnCampusWifi, setIsOnCampusWifi] = useState(false);
   const [verificationDetails, setVerificationDetails] = useState({
     location: false,
@@ -126,7 +129,7 @@ const StudentDashboard: React.FC = () => {
     { name: 'Week 5', attendance: 90 }
   ];
 
-  // Get user location
+  // Get user location with improved error handling
   useEffect(() => {
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
@@ -136,12 +139,43 @@ const StudentDashboard: React.FC = () => {
             longitude: position.coords.longitude,
             accuracy: position.coords.accuracy
           });
+          setLocationError('');
+          setLocationPermissionDenied(false);
         },
         (error) => {
           console.error('Error getting location:', error);
+          let errorMessage = '';
+          let permissionDenied = false;
+          
+          switch (error.code) {
+            case error.PERMISSION_DENIED:
+              errorMessage = 'Location access denied by user';
+              permissionDenied = true;
+              break;
+            case error.POSITION_UNAVAILABLE:
+              errorMessage = 'Location information unavailable';
+              break;
+            case error.TIMEOUT:
+              errorMessage = 'Location request timed out';
+              break;
+            default:
+              errorMessage = 'An unknown error occurred while retrieving location';
+              break;
+          }
+          
+          setLocationError(errorMessage);
+          setLocationPermissionDenied(permissionDenied);
+          
+          // Only show toast for permission denied, as this is the most actionable error
+          if (permissionDenied) {
+            toast.error('Location access is required for QR attendance. Please enable location in your browser settings.');
+          }
         },
         { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 }
       );
+    } else {
+      setLocationError('Geolocation is not supported by this browser');
+      toast.error('Your browser does not support location services');
     }
   }, []);
 
@@ -160,6 +194,53 @@ const StudentDashboard: React.FC = () => {
     const interval = setInterval(checkWifi, 10000);
     return () => clearInterval(interval);
   }, []);
+
+  // Request location permission
+  const requestLocationPermission = () => {
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          setLocation({
+            latitude: position.coords.latitude,
+            longitude: position.coords.longitude,
+            accuracy: position.coords.accuracy
+          });
+          setLocationError('');
+          setLocationPermissionDenied(false);
+          toast.success('Location access granted!');
+        },
+        (error) => {
+          console.error('Error getting location:', error);
+          let errorMessage = '';
+          let permissionDenied = false;
+          
+          switch (error.code) {
+            case error.PERMISSION_DENIED:
+              errorMessage = 'Location access denied by user';
+              permissionDenied = true;
+              toast.error('Please enable location access in your browser settings to use QR attendance.');
+              break;
+            case error.POSITION_UNAVAILABLE:
+              errorMessage = 'Location information unavailable';
+              toast.error('Unable to determine your location. Please try again.');
+              break;
+            case error.TIMEOUT:
+              errorMessage = 'Location request timed out';
+              toast.error('Location request timed out. Please try again.');
+              break;
+            default:
+              errorMessage = 'An unknown error occurred while retrieving location';
+              toast.error('Unable to access location. Please try again.');
+              break;
+          }
+          
+          setLocationError(errorMessage);
+          setLocationPermissionDenied(permissionDenied);
+        },
+        { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 }
+      );
+    }
+  };
 
   // Start camera for QR scanning
   const startCamera = async () => {
@@ -296,7 +377,7 @@ const StudentDashboard: React.FC = () => {
       }
     }, 1500);
 
-    // Check 4: Location verification
+    // Check 4: Location verification (with fallback for denied permission)
     setTimeout(() => {
       if (location && sessionData.location) {
         const distance = calculateDistance(
@@ -319,6 +400,10 @@ const StudentDashboard: React.FC = () => {
         
         // All checks passed - mark attendance
         markAttendanceSuccess(sessionData);
+      } else if (locationPermissionDenied) {
+        // If location permission is denied, show error with instructions
+        setAttendanceStatus('error');
+        toast.error('Location access is required for attendance. Please enable location in your browser settings and try again.');
       } else {
         setAttendanceStatus('error');
         toast.error('Location access required to mark attendance.');
@@ -381,10 +466,15 @@ const StudentDashboard: React.FC = () => {
     }, 2000);
   };
 
-  // Open QR scanner
+  // Open QR scanner with improved validation
   const openQRScanner = () => {
-    if (!location) {
-      toast.error('Please enable location access to mark attendance.');
+    if (locationPermissionDenied) {
+      toast.error('Location access is required for QR attendance. Please click "Enable Location" to grant permission.');
+      return;
+    }
+    
+    if (!location && !locationError) {
+      toast.error('Waiting for location access. Please try again in a moment.');
       return;
     }
     
@@ -443,10 +533,10 @@ const StudentDashboard: React.FC = () => {
           <div className="mt-4 sm:mt-0 flex items-center space-x-4">
             {/* Status Indicators */}
             <div className={`flex items-center px-3 py-1 rounded-full text-sm ${
-              location ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
+              location ? 'bg-green-100 text-green-700' : locationPermissionDenied ? 'bg-red-100 text-red-700' : 'bg-yellow-100 text-yellow-700'
             }`}>
               <MapPin className="h-4 w-4 mr-1" />
-              {location ? 'Location OK' : 'No Location'}
+              {location ? 'Location OK' : locationPermissionDenied ? 'Location Denied' : 'Getting Location...'}
             </div>
             <div className={`flex items-center px-3 py-1 rounded-full text-sm ${
               isOnCampusWifi ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
@@ -454,15 +544,50 @@ const StudentDashboard: React.FC = () => {
               <Wifi className="h-4 w-4 mr-1" />
               {isOnCampusWifi ? 'Campus WiFi' : 'Not Connected'}
             </div>
+            
+            {/* Location Permission Button */}
+            {locationPermissionDenied && (
+              <button
+                onClick={requestLocationPermission}
+                className="bg-orange-600 hover:bg-orange-700 text-white px-4 py-2 rounded-lg font-medium transition-colors flex items-center"
+              >
+                <Settings className="h-4 w-4 mr-2" />
+                Enable Location
+              </button>
+            )}
+            
             <button
               onClick={openQRScanner}
-              className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors flex items-center"
+              disabled={locationPermissionDenied}
+              className={`px-4 py-2 rounded-lg font-medium transition-colors flex items-center ${
+                locationPermissionDenied 
+                  ? 'bg-gray-400 text-gray-600 cursor-not-allowed' 
+                  : 'bg-blue-600 hover:bg-blue-700 text-white'
+              }`}
             >
               <QrCode className="h-4 w-4 mr-2" />
               Scan QR
             </button>
           </div>
         </div>
+
+        {/* Location Permission Alert */}
+        {locationPermissionDenied && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="bg-orange-50 border border-orange-200 rounded-lg p-4 flex items-start space-x-3"
+          >
+            <AlertCircle className="h-5 w-5 text-orange-600 mt-0.5 flex-shrink-0" />
+            <div className="flex-1">
+              <h3 className="text-sm font-medium text-orange-800">Location Access Required</h3>
+              <p className="text-sm text-orange-700 mt-1">
+                QR code attendance requires location access to verify you're in the classroom. 
+                Click "Enable Location" above or manually enable location access in your browser settings.
+              </p>
+            </div>
+          </motion.div>
+        )}
 
         {/* Quick Stats */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
