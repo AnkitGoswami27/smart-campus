@@ -180,6 +180,113 @@ const GradingInterface: React.FC = () => {
     }, 1000);
   };
 
+  const viewPDF = (attachment: string) => {
+    // Create a mock PDF URL for demonstration
+    const newWindow = window.open();
+    if (newWindow) {
+      newWindow.document.write(`
+        <html>
+          <head>
+            <title>${attachment}</title>
+            <style>
+              body { margin: 0; padding: 20px; font-family: Arial, sans-serif; background: #f5f5f5; }
+              .header { background: white; padding: 20px; border-radius: 8px; margin-bottom: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+              .pdf-viewer { background: white; padding: 40px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); min-height: 80vh; }
+              .mock-content { max-width: 800px; margin: 0 auto; line-height: 1.6; }
+              h1, h2, h3 { color: #333; }
+              .student-info { background: #e3f2fd; padding: 15px; border-radius: 8px; margin-bottom: 30px; }
+              .section { margin-bottom: 30px; }
+              .code-block { background: #f5f5f5; padding: 15px; border-radius: 4px; font-family: monospace; margin: 10px 0; }
+              .highlight { background: #fff3cd; padding: 2px 4px; border-radius: 3px; }
+            </style>
+          </head>
+          <body>
+            <div class="header">
+              <h1>📄 ${attachment}</h1>
+              <div class="student-info">
+                <strong>Student:</strong> ${selectedStudent?.name || 'Student Name'}<br>
+                <strong>Student ID:</strong> ${selectedStudent?.studentId || 'ST000000'}<br>
+                <strong>Submitted:</strong> ${selectedStudent?.submissionDate ? new Date(selectedStudent.submissionDate).toLocaleString() : 'N/A'}<br>
+                <strong>Assignment:</strong> ${assignment.title}
+              </div>
+            </div>
+            <div class="pdf-viewer">
+              <div class="mock-content">
+                <h2>Algorithm Analysis Report</h2>
+                
+                <div class="section">
+                  <h3>1. Introduction</h3>
+                  <p>This report analyzes the time and space complexity of various sorting algorithms including Bubble Sort, Quick Sort, Merge Sort, and Heap Sort. The analysis includes theoretical complexity calculations and practical performance measurements.</p>
+                </div>
+
+                <div class="section">
+                  <h3>2. Bubble Sort Analysis</h3>
+                  <p><strong>Time Complexity:</strong></p>
+                  <ul>
+                    <li>Best Case: <span class="highlight">O(n)</span> - when array is already sorted</li>
+                    <li>Average Case: <span class="highlight">O(n²)</span></li>
+                    <li>Worst Case: <span class="highlight">O(n²)</span> - when array is reverse sorted</li>
+                  </ul>
+                  <p><strong>Space Complexity:</strong> <span class="highlight">O(1)</span> - in-place sorting</p>
+                  
+                  <div class="code-block">
+def bubble_sort(arr):
+    n = len(arr)
+    for i in range(n):
+        for j in range(0, n-i-1):
+            if arr[j] > arr[j+1]:
+                arr[j], arr[j+1] = arr[j+1], arr[j]
+    return arr
+                  </div>
+                </div>
+
+                <div class="section">
+                  <h3>3. Quick Sort Analysis</h3>
+                  <p><strong>Time Complexity:</strong></p>
+                  <ul>
+                    <li>Best Case: <span class="highlight">O(n log n)</span></li>
+                    <li>Average Case: <span class="highlight">O(n log n)</span></li>
+                    <li>Worst Case: <span class="highlight">O(n²)</span> - when pivot is always smallest/largest</li>
+                  </ul>
+                  <p><strong>Space Complexity:</strong> <span class="highlight">O(log n)</span> - due to recursion stack</p>
+                </div>
+
+                <div class="section">
+                  <h3>4. Merge Sort Analysis</h3>
+                  <p><strong>Time Complexity:</strong> <span class="highlight">O(n log n)</span> in all cases</p>
+                  <p><strong>Space Complexity:</strong> <span class="highlight">O(n)</span> - requires additional array</p>
+                </div>
+
+                <div class="section">
+                  <h3>5. Performance Comparison</h3>
+                  <p>Based on empirical testing with arrays of size 1000, 5000, and 10000:</p>
+                  <ul>
+                    <li>Merge Sort consistently performed best for large datasets</li>
+                    <li>Quick Sort showed good average performance but poor worst-case behavior</li>
+                    <li>Bubble Sort was significantly slower for all test cases</li>
+                  </ul>
+                </div>
+
+                <div class="section">
+                  <h3>6. Conclusion</h3>
+                  <p>The analysis demonstrates that while Bubble Sort is simple to implement, it is inefficient for large datasets. Merge Sort provides consistent O(n log n) performance but requires additional memory. Quick Sort offers good average performance with in-place sorting but can degrade to O(n²) in worst cases.</p>
+                </div>
+
+                <hr style="margin: 40px 0; border: 1px solid #ddd;">
+                <p style="text-align: center; color: #666; font-style: italic;">
+                  This is a demonstration of PDF viewing functionality in the grading interface.
+                </p>
+              </div>
+            </div>
+          </body>
+        </html>
+      `);
+      newWindow.document.close();
+    }
+    
+    toast.success(`Opening ${attachment} in new tab`);
+  };
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'submitted':
@@ -418,14 +525,16 @@ const GradingInterface: React.FC = () => {
                                   </div>
                                   <div className="flex space-x-2">
                                     <button
-                                      onClick={() => toast.success(`Viewing ${attachment}...`)}
+                                      onClick={() => viewPDF(attachment)}
                                       className="p-2 text-gray-600 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                                      title="View PDF"
                                     >
                                       <Eye className="h-4 w-4" />
                                     </button>
                                     <button
                                       onClick={() => downloadSubmission(attachment)}
                                       className="p-2 text-gray-600 dark:text-gray-400 hover:text-green-600 dark:hover:text-green-400 transition-colors"
+                                      title="Download"
                                     >
                                       <Download className="h-4 w-4" />
                                     </button>
