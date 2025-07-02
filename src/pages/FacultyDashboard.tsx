@@ -21,7 +21,9 @@ import {
   Target,
   Bell,
   Upload,
-  X
+  X,
+  Eye,
+  ExternalLink
 } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line } from 'recharts';
 import { motion } from 'framer-motion';
@@ -47,6 +49,8 @@ const FacultyDashboard: React.FC = () => {
   const [showReportModal, setShowReportModal] = useState(false);
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [showAddTaskModal, setShowAddTaskModal] = useState(false);
+  const [showSubmissionsModal, setShowSubmissionsModal] = useState(false);
+  const [selectedAssignment, setSelectedAssignment] = useState<any>(null);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [announcementPdf, setAnnouncementPdf] = useState<File | null>(null);
   
@@ -124,6 +128,60 @@ const FacultyDashboard: React.FC = () => {
     { id: 6, name: 'Emily Davis', studentId: 'ST006', gpa: 3.9, attendance: 97, courses: 4 }
   ]);
 
+  // Mock student submissions data
+  const [studentSubmissions] = useState([
+    {
+      id: 1,
+      studentName: 'Alice Johnson',
+      studentId: 'CS2024001',
+      submittedAt: '2024-01-14 14:30',
+      status: 'submitted',
+      fileName: 'assignment_alice_johnson.pdf',
+      fileSize: '2.4 MB',
+      grade: null
+    },
+    {
+      id: 2,
+      studentName: 'Bob Smith',
+      studentId: 'CS2024002',
+      submittedAt: '2024-01-14 16:45',
+      status: 'graded',
+      grade: 85,
+      fileName: 'assignment_bob_smith.pdf',
+      fileSize: '1.8 MB'
+    },
+    {
+      id: 3,
+      studentName: 'Carol Davis',
+      studentId: 'CS2024003',
+      submittedAt: '2024-01-15 09:15',
+      status: 'late',
+      fileName: 'assignment_carol_davis.pdf',
+      fileSize: '3.1 MB',
+      grade: null
+    },
+    {
+      id: 4,
+      studentName: 'David Wilson',
+      studentId: 'CS2024004',
+      submittedAt: '2024-01-13 22:30',
+      status: 'graded',
+      grade: 92,
+      fileName: 'assignment_david_wilson.pdf',
+      fileSize: '2.1 MB'
+    },
+    {
+      id: 5,
+      studentName: 'Emma Brown',
+      studentId: 'CS2024005',
+      submittedAt: '2024-01-14 11:20',
+      status: 'submitted',
+      fileName: 'assignment_emma_brown.pdf',
+      fileSize: '1.9 MB',
+      grade: null
+    }
+  ]);
+
   const handleTakeAttendance = () => {
     navigate('/attendance');
     toast.success('Opening attendance system');
@@ -161,9 +219,15 @@ const FacultyDashboard: React.FC = () => {
   };
 
   const startGrading = (assignment: any) => {
-    // Navigate to the comprehensive grading interface
+    // Navigate to grading interface
     navigate('/grading', { state: { assignment } });
     toast.success(`Opening grading interface for ${assignment.title}`);
+  };
+
+  const viewSubmissions = (assignment: any) => {
+    setSelectedAssignment(assignment);
+    setShowSubmissionsModal(true);
+    toast.success(`Loading submissions for ${assignment.title}`);
   };
 
   const viewStudentProgress = () => {
@@ -243,12 +307,141 @@ const FacultyDashboard: React.FC = () => {
     toast.success('Opening message to reply');
   };
 
+  const downloadSubmission = (submission: any) => {
+    toast.success(`Downloading ${submission.fileName}...`);
+    setTimeout(() => {
+      toast.success(`${submission.fileName} downloaded successfully!`);
+    }, 1000);
+  };
+
+  const viewPDF = (submission: any) => {
+    // Create a mock PDF URL for demonstration
+    const newWindow = window.open();
+    if (newWindow) {
+      newWindow.document.write(`
+        <html>
+          <head>
+            <title>${submission.fileName}</title>
+            <style>
+              body { margin: 0; padding: 20px; font-family: Arial, sans-serif; background: #f5f5f5; }
+              .header { background: white; padding: 20px; border-radius: 8px; margin-bottom: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+              .pdf-viewer { background: white; padding: 40px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); min-height: 80vh; }
+              .mock-content { max-width: 800px; margin: 0 auto; line-height: 1.6; }
+              h1, h2, h3 { color: #333; }
+              .student-info { background: #e3f2fd; padding: 15px; border-radius: 8px; margin-bottom: 30px; }
+              .section { margin-bottom: 30px; }
+              .code-block { background: #f5f5f5; padding: 15px; border-radius: 4px; font-family: monospace; margin: 10px 0; }
+              .highlight { background: #fff3cd; padding: 2px 4px; border-radius: 3px; }
+            </style>
+          </head>
+          <body>
+            <div class="header">
+              <h1>📄 ${submission.fileName}</h1>
+              <div class="student-info">
+                <strong>Student:</strong> ${submission.studentName}<br>
+                <strong>Student ID:</strong> ${submission.studentId}<br>
+                <strong>Submitted:</strong> ${new Date(submission.submittedAt).toLocaleString()}<br>
+                <strong>Assignment:</strong> ${selectedAssignment?.title || 'Assignment'}
+              </div>
+            </div>
+            <div class="pdf-viewer">
+              <div class="mock-content">
+                <h2>Assignment Submission</h2>
+                
+                <div class="section">
+                  <h3>1. Introduction</h3>
+                  <p>This document contains the completed assignment submission for ${selectedAssignment?.title || 'the given assignment'}. The work demonstrates understanding of the core concepts and practical application of the learned material.</p>
+                </div>
+
+                <div class="section">
+                  <h3>2. Problem Analysis</h3>
+                  <p>The assignment required analysis of <span class="highlight">algorithm complexity</span> and implementation of efficient solutions. Key considerations included:</p>
+                  <ul>
+                    <li>Time complexity optimization</li>
+                    <li>Space efficiency</li>
+                    <li>Code readability and documentation</li>
+                    <li>Test case coverage</li>
+                  </ul>
+                </div>
+
+                <div class="section">
+                  <h3>3. Implementation</h3>
+                  <p>The solution was implemented using the following approach:</p>
+                  
+                  <div class="code-block">
+function efficientSort(arr) {
+    // Implementation of optimized sorting algorithm
+    if (arr.length <= 1) return arr;
+    
+    const pivot = arr[Math.floor(arr.length / 2)];
+    const left = arr.filter(x => x < pivot);
+    const middle = arr.filter(x => x === pivot);
+    const right = arr.filter(x => x > pivot);
+    
+    return [...efficientSort(left), ...middle, ...efficientSort(right)];
+}
+                  </div>
+                </div>
+
+                <div class="section">
+                  <h3>4. Testing and Results</h3>
+                  <p>Comprehensive testing was performed with various input sizes:</p>
+                  <ul>
+                    <li><strong>Small datasets (n < 100):</strong> Average performance of O(n log n)</li>
+                    <li><strong>Medium datasets (100 ≤ n < 1000):</strong> Consistent O(n log n) performance</li>
+                    <li><strong>Large datasets (n ≥ 1000):</strong> Maintained efficiency with minimal memory overhead</li>
+                  </ul>
+                </div>
+
+                <div class="section">
+                  <h3>5. Conclusion</h3>
+                  <p>The implemented solution successfully meets all assignment requirements while maintaining optimal performance characteristics. The code is well-documented and follows best practices for maintainability.</p>
+                </div>
+
+                <div class="section">
+                  <h3>6. References</h3>
+                  <ul>
+                    <li>Course textbook: "Introduction to Algorithms" by Cormen et al.</li>
+                    <li>Lecture notes from ${selectedAssignment?.course || 'course'}</li>
+                    <li>Additional research from peer-reviewed sources</li>
+                  </ul>
+                </div>
+
+                <hr style="margin: 40px 0; border: 1px solid #ddd;">
+                <p style="text-align: center; color: #666; font-style: italic;">
+                  This is a demonstration of PDF viewing functionality in the faculty dashboard.<br>
+                  File: ${submission.fileName} | Size: ${submission.fileSize} | Student: ${submission.studentName}
+                </p>
+              </div>
+            </div>
+          </body>
+        </html>
+      `);
+      newWindow.document.close();
+    }
+    
+    toast.success(`Opening ${submission.fileName} in new tab`);
+  };
+
   const getPriorityColor = (priority: string) => {
     switch (priority) {
       case 'high': return 'text-red-600 bg-red-50 dark:bg-red-900/20';
       case 'medium': return 'text-yellow-600 bg-yellow-50 dark:bg-yellow-900/20';
       case 'low': return 'text-green-600 bg-green-50 dark:bg-green-900/20';
       default: return 'text-gray-600 bg-gray-50 dark:bg-gray-900/20';
+    }
+  };
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'submitted':
+        return 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/20 dark:text-blue-300 dark:border-blue-800';
+      case 'graded':
+        return 'bg-green-50 text-green-700 border-green-200 dark:bg-green-900/20 dark:text-green-300 dark:border-green-800';
+      case 'late':
+        return 'bg-yellow-50 text-yellow-700 border-yellow-200 dark:bg-yellow-900/20 dark:text-yellow-300 dark:border-yellow-800';
+      default:
+        return 'bg-gray-50 text-gray-700 border-gray-200 dark:bg-gray-900/20 dark:text-gray-300 dark:border-gray-800';
     }
   };
 
@@ -651,12 +844,98 @@ const FacultyDashboard: React.FC = () => {
                       >
                         Start Grading
                       </button>
-                      <button className="bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 px-4 py-2 rounded-lg text-sm hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors">
+                      <button 
+                        onClick={() => viewSubmissions(assignment)}
+                        className="bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 px-4 py-2 rounded-lg text-sm hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+                      >
                         View Submissions
                       </button>
                     </div>
                   </div>
                 ))}
+              </div>
+            </motion.div>
+          </div>
+        )}
+
+        {/* View Submissions Modal */}
+        {showSubmissionsModal && selectedAssignment && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="bg-white dark:bg-gray-800 rounded-xl p-6 w-full max-w-4xl max-h-[90vh] overflow-hidden"
+            >
+              <div className="flex items-center justify-between mb-6">
+                <div>
+                  <h2 className="text-xl font-bold text-gray-900 dark:text-white">
+                    {selectedAssignment.title} - Submissions
+                  </h2>
+                  <p className="text-sm text-gray-600 dark:text-gray-300">{selectedAssignment.course}</p>
+                </div>
+                <button
+                  onClick={() => setShowSubmissionsModal(false)}
+                  className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                >
+                  <X className="h-6 w-6" />
+                </button>
+              </div>
+              
+              <div className="overflow-y-auto max-h-[calc(90vh-120px)]">
+                <div className="space-y-4">
+                  {studentSubmissions.map((submission) => (
+                    <div key={submission.id} className="p-4 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center space-x-4">
+                          <div className="w-10 h-10 rounded-full bg-gradient-to-r from-blue-500 to-purple-600 flex items-center justify-center">
+                            <span className="text-white font-medium text-sm">
+                              {submission.studentName.charAt(0)}
+                            </span>
+                          </div>
+                          <div>
+                            <h3 className="font-medium text-gray-900 dark:text-white">{submission.studentName}</h3>
+                            <p className="text-sm text-gray-600 dark:text-gray-300">ID: {submission.studentId}</p>
+                            <div className="flex items-center space-x-4 mt-1">
+                              <span className={`px-2 py-1 rounded-full text-xs font-medium border ${getStatusColor(submission.status)}`}>
+                                {submission.status}
+                              </span>
+                              {submission.grade && (
+                                <span className="text-sm font-medium text-green-600 dark:text-green-400">
+                                  Grade: {submission.grade}/100
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                        
+                        <div className="flex items-center space-x-4">
+                          <div className="text-right">
+                            <p className="text-sm text-gray-600 dark:text-gray-300">{submission.fileName}</p>
+                            <p className="text-xs text-gray-500 dark:text-gray-400">
+                              {submission.fileSize} • {new Date(submission.submittedAt).toLocaleString()}
+                            </p>
+                          </div>
+                          <div className="flex items-center space-x-2">
+                            <button
+                              onClick={() => viewPDF(submission)}
+                              className="p-2 text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 transition-colors"
+                              title="View PDF"
+                            >
+                              <Eye className="h-4 w-4" />
+                            </button>
+                            <button
+                              onClick={() => downloadSubmission(submission)}
+                              className="p-2 text-gray-600 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-300 transition-colors"
+                              title="Download"
+                            >
+                              <Download className="h-4 w-4" />
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
             </motion.div>
           </div>
