@@ -25,7 +25,7 @@ import {
   Filter
 } from 'lucide-react';
 import Layout from '../components/Layout';
-import { PieChart as RechartsPieChart, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, LineChart, Line } from 'recharts';
+import { PieChart as RechartsPieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, LineChart, Line } from 'recharts';
 import { toast } from 'react-hot-toast';
 
 interface User {
