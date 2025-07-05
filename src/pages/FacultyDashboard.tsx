@@ -19,7 +19,10 @@ import {
   Send,
   Award,
   Target,
-  Bell
+  Bell,
+  Upload,
+  X,
+  Eye
 } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line } from 'recharts';
 import { motion } from 'framer-motion';
@@ -42,6 +45,9 @@ const FacultyDashboard: React.FC = () => {
   const [showAnnouncementModal, setShowAnnouncementModal] = useState(false);
   const [showStudentModal, setShowStudentModal] = useState(false);
   const [showReportModal, setShowReportModal] = useState(false);
+  const [showUploadModal, setShowUploadModal] = useState(false);
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  
   const [studentMessages, setStudentMessages] = useState([
     { id: 1, from: 'John Doe', subject: 'Question about Assignment 2', time: '30 min ago', unread: true },
     { id: 2, from: 'Jane Smith', subject: 'Request for Extension', time: '2 hours ago', unread: true },
@@ -99,6 +105,84 @@ const FacultyDashboard: React.FC = () => {
     { id: 4, task: 'Update Course Materials', dueDate: '2024-03-22', priority: 'low' }
   ]);
 
+  const studentProgress = [
+    {
+      id: '1',
+      name: 'Alice Johnson',
+      studentId: 'ST001',
+      gpa: '3.8',
+      attendance: 95,
+      courses: 4
+    },
+    {
+      id: '2',
+      name: 'Bob Smith',
+      studentId: 'ST002',
+      gpa: '3.6',
+      attendance: 88,
+      courses: 5
+    },
+    {
+      id: '3',
+      name: 'Carol Davis',
+      studentId: 'ST003',
+      gpa: '3.9',
+      attendance: 92,
+      courses: 4
+    },
+    {
+      id: '4',
+      name: 'David Wilson',
+      studentId: 'ST004',
+      gpa: '3.4',
+      attendance: 85,
+      courses: 3
+    },
+    {
+      id: '5',
+      name: 'Eva Brown',
+      studentId: 'ST005',
+      gpa: '3.7',
+      attendance: 90,
+      courses: 4
+    },
+    {
+      id: '6',
+      name: 'Frank Miller',
+      studentId: 'ST006',
+      gpa: '3.5',
+      attendance: 87,
+      courses: 5
+    }
+  ];
+
+  const assignments = [
+    {
+      id: 1,
+      title: 'CS101 Assignment 3',
+      course: 'Introduction to Programming',
+      submissions: 24,
+      graded: 8,
+      dueDate: '2024-03-16'
+    },
+    {
+      id: 2,
+      title: 'CS201 Project Proposal',
+      course: 'Data Structures',
+      submissions: 18,
+      graded: 18,
+      dueDate: '2024-03-14'
+    },
+    {
+      id: 3,
+      title: 'CS301 Database Design',
+      course: 'Database Systems',
+      submissions: 22,
+      graded: 5,
+      dueDate: '2024-03-18'
+    }
+  ];
+
   const handleTakeAttendance = () => {
     navigate('/attendance');
     toast.success('Opening attendance system');
@@ -110,17 +194,14 @@ const FacultyDashboard: React.FC = () => {
 
   const gradeAssignments = () => {
     setShowGradeModal(true);
-    toast.success('Opening grading interface');
   };
 
   const viewStudentProgress = () => {
     setShowStudentModal(true);
-    toast.success('Loading student progress data');
   };
 
   const generateReport = () => {
     setShowReportModal(true);
-    toast.success('Generating course report...');
   };
 
   const scheduleOfficeHours = () => {
@@ -131,10 +212,7 @@ const FacultyDashboard: React.FC = () => {
   };
 
   const uploadMaterials = () => {
-    toast.success('Opening file upload interface...');
-    setTimeout(() => {
-      toast.success('Course materials uploaded successfully!');
-    }, 2000);
+    setShowUploadModal(true);
   };
 
   const sendMessage = () => {
@@ -168,6 +246,40 @@ const FacultyDashboard: React.FC = () => {
     markMessageAsRead(messageId);
     navigate('/messages');
     toast.success('Opening message to reply');
+  };
+
+  const startGrading = (assignmentId: number) => {
+    const assignment = assignments.find(a => a.id === assignmentId);
+    if (assignment) {
+      navigate('/grading', { state: { assignment } });
+      toast.success(`Opening grading interface for ${assignment.title}`);
+    }
+  };
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files) {
+      setSelectedFiles(Array.from(e.target.files));
+    }
+  };
+
+  const removeFile = (index: number) => {
+    setSelectedFiles(files => files.filter((_, i) => i !== index));
+  };
+
+  const handleFileUpload = () => {
+    if (selectedFiles.length > 0) {
+      toast.success(`${selectedFiles.length} file(s) uploaded successfully!`);
+      setSelectedFiles([]);
+      setShowUploadModal(false);
+    }
+  };
+
+  const downloadReport = () => {
+    toast.success('Generating comprehensive report...');
+    setTimeout(() => {
+      toast.success('Report downloaded successfully!');
+      setShowReportModal(false);
+    }, 2000);
   };
 
   const getPriorityColor = (priority: string) => {
@@ -519,13 +631,13 @@ const FacultyDashboard: React.FC = () => {
           </motion.div>
         </div>
 
-        {/* Modals */}
+        {/* Grade Assignments Modal */}
         {showGradeModal && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
             <motion.div
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
-              className="bg-white dark:bg-gray-800 rounded-xl p-6 w-full max-w-2xl"
+              className="bg-white dark:bg-gray-800 rounded-xl p-6 w-full max-w-4xl max-h-[80vh] overflow-y-auto"
             >
               <div className="flex items-center justify-between mb-6">
                 <h2 className="text-xl font-bold text-gray-900 dark:text-white">Grade Assignments</h2>
@@ -533,15 +645,184 @@ const FacultyDashboard: React.FC = () => {
                   onClick={() => setShowGradeModal(false)}
                   className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
                 >
-                  ×
+                  <X className="h-6 w-6" />
                 </button>
               </div>
               <div className="space-y-4">
-                <div className="p-4 border border-gray-200 dark:border-gray-700 rounded-lg">
-                  <h3 className="font-medium text-gray-900 dark:text-white">CS101 Assignment 3</h3>
-                  <p className="text-sm text-gray-600 dark:text-gray-300">24 submissions pending review</p>
-                  <button className="mt-2 bg-blue-600 text-white px-4 py-2 rounded-lg text-sm">
-                    Start Grading
+                {assignments.map((assignment) => (
+                  <div key={assignment.id} className="p-6 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+                    <div className="flex justify-between items-start mb-4">
+                      <div>
+                        <h3 className="text-lg font-medium text-gray-900 dark:text-white">{assignment.title}</h3>
+                        <p className="text-sm text-gray-600 dark:text-gray-300">{assignment.course}</p>
+                        <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                          Due: {new Date(assignment.dueDate).toLocaleDateString()}
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-sm text-gray-600 dark:text-gray-300">
+                          {assignment.graded}/{assignment.submissions} graded
+                        </p>
+                        <div className="w-32 bg-gray-200 dark:bg-gray-700 rounded-full h-2 mt-2">
+                          <div
+                            className="bg-blue-600 h-2 rounded-full"
+                            style={{ width: `${(assignment.graded / assignment.submissions) * 100}%` }}
+                          ></div>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className={`px-3 py-1 rounded-full text-sm font-medium ${
+                        assignment.graded === assignment.submissions
+                          ? 'bg-green-50 text-green-700 dark:bg-green-900/20 dark:text-green-300'
+                          : 'bg-orange-50 text-orange-700 dark:bg-orange-900/20 dark:text-orange-300'
+                      }`}>
+                        {assignment.graded === assignment.submissions ? 'Completed' : 'Pending'}
+                      </span>
+                      <button
+                        onClick={() => startGrading(assignment.id)}
+                        className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm transition-colors"
+                      >
+                        {assignment.graded === assignment.submissions ? 'Review Grades' : 'Start Grading'}
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </motion.div>
+          </div>
+        )}
+
+        {/* Student Progress Modal */}
+        {showStudentModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="bg-white dark:bg-gray-800 rounded-xl p-6 w-full max-w-6xl max-h-[80vh] overflow-y-auto"
+            >
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-xl font-bold text-gray-900 dark:text-white">Student Progress Overview</h2>
+                <button
+                  onClick={() => setShowStudentModal(false)}
+                  className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                >
+                  <X className="h-6 w-6" />
+                </button>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {studentProgress.map((student) => (
+                  <div key={student.id} className="p-6 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+                    <div className="flex items-center space-x-4 mb-4">
+                      <div className="w-12 h-12 rounded-full bg-gradient-to-r from-blue-500 to-purple-600 flex items-center justify-center">
+                        <span className="text-white font-medium text-lg">
+                          {student.name.charAt(0)}
+                        </span>
+                      </div>
+                      <div>
+                        <h3 className="font-medium text-gray-900 dark:text-white">{student.name}</h3>
+                        <p className="text-sm text-gray-500 dark:text-gray-400">{student.studentId}</p>
+                      </div>
+                    </div>
+                    <div className="space-y-3">
+                      <div className="flex justify-between items-center">
+                        <span className="text-sm text-gray-600 dark:text-gray-300">GPA:</span>
+                        <span className="text-sm font-medium text-gray-900 dark:text-white">{student.gpa}</span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-sm text-gray-600 dark:text-gray-300">Attendance:</span>
+                        <span className="text-sm font-medium text-gray-900 dark:text-white">{student.attendance}%</span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-sm text-gray-600 dark:text-gray-300">Courses:</span>
+                        <span className="text-sm font-medium text-gray-900 dark:text-white">{student.courses}</span>
+                      </div>
+                      <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2 mt-3">
+                        <div
+                          className="bg-green-600 h-2 rounded-full"
+                          style={{ width: `${student.attendance}%` }}
+                        ></div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </motion.div>
+          </div>
+        )}
+
+        {/* Reports Modal */}
+        {showReportModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="bg-white dark:bg-gray-800 rounded-xl p-6 w-full max-w-4xl"
+            >
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-xl font-bold text-gray-900 dark:text-white">Course Reports & Analytics</h2>
+                <button
+                  onClick={() => setShowReportModal(false)}
+                  className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                >
+                  <X className="h-6 w-6" />
+                </button>
+              </div>
+              
+              <div className="space-y-6">
+                {/* Summary Stats */}
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                  <div className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg text-center">
+                    <h3 className="font-medium text-blue-900 dark:text-blue-300">Total Students</h3>
+                    <p className="text-2xl font-bold text-blue-600">{facultyData.totalStudents}</p>
+                  </div>
+                  <div className="p-4 bg-green-50 dark:bg-green-900/20 rounded-lg text-center">
+                    <h3 className="font-medium text-green-900 dark:text-green-300">Active Courses</h3>
+                    <p className="text-2xl font-bold text-green-600">{facultyData.activeCourses}</p>
+                  </div>
+                  <div className="p-4 bg-orange-50 dark:bg-orange-900/20 rounded-lg text-center">
+                    <h3 className="font-medium text-orange-900 dark:text-orange-300">Avg. Attendance</h3>
+                    <p className="text-2xl font-bold text-orange-600">88.3%</p>
+                  </div>
+                  <div className="p-4 bg-purple-50 dark:bg-purple-900/20 rounded-lg text-center">
+                    <h3 className="font-medium text-purple-900 dark:text-purple-300">Avg. Performance</h3>
+                    <p className="text-2xl font-bold text-purple-600">81.7%</p>
+                  </div>
+                </div>
+
+                {/* Course Performance Details */}
+                <div className="p-6 border border-gray-200 dark:border-gray-700 rounded-lg">
+                  <h3 className="font-medium text-gray-900 dark:text-white mb-4">Course Performance Summary</h3>
+                  <div className="space-y-4">
+                    {courses.map((course) => (
+                      <div key={course.id} className="flex justify-between items-center p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                        <div>
+                          <h4 className="font-medium text-gray-900 dark:text-white">{course.code}</h4>
+                          <p className="text-sm text-gray-600 dark:text-gray-300">{course.name}</p>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-sm font-medium text-gray-900 dark:text-white">{course.attendanceRate}% attendance</p>
+                          <p className="text-sm text-gray-600 dark:text-gray-300">{course.students} students</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Action Buttons */}
+                <div className="flex justify-end space-x-4">
+                  <button
+                    onClick={() => setShowReportModal(false)}
+                    className="px-6 py-2 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+                  >
+                    Close
+                  </button>
+                  <button
+                    onClick={downloadReport}
+                    className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors flex items-center"
+                  >
+                    <Download className="h-4 w-4 mr-2" />
+                    Download PDF Report
                   </button>
                 </div>
               </div>
@@ -549,6 +830,112 @@ const FacultyDashboard: React.FC = () => {
           </div>
         )}
 
+        {/* Upload Materials Modal */}
+        {showUploadModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="bg-white dark:bg-gray-800 rounded-xl p-6 w-full max-w-2xl"
+            >
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-xl font-bold text-gray-900 dark:text-white">Upload Course Materials</h2>
+                <button
+                  onClick={() => setShowUploadModal(false)}
+                  className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                >
+                  <X className="h-6 w-6" />
+                </button>
+              </div>
+              
+              <div className="space-y-6">
+                {/* Course Selection */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Select Course
+                  </label>
+                  <select className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500">
+                    <option value="">Choose a course...</option>
+                    {courses.map((course) => (
+                      <option key={course.id} value={course.code}>
+                        {course.code} - {course.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* File Upload Area */}
+                <div className="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-8 text-center">
+                  <Upload className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                  <p className="text-gray-600 dark:text-gray-300 mb-2">Drag & drop files here or click to browse</p>
+                  <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
+                    Supported formats: PDF, DOC, DOCX, PPT, PPTX, XLS, XLSX
+                  </p>
+                  <input
+                    type="file"
+                    multiple
+                    onChange={handleFileSelect}
+                    className="hidden"
+                    id="file-upload"
+                    accept=".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx"
+                  />
+                  <label
+                    htmlFor="file-upload"
+                    className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg cursor-pointer inline-block transition-colors"
+                  >
+                    Choose Files
+                  </label>
+                </div>
+
+                {/* Selected Files */}
+                {selectedFiles.length > 0 && (
+                  <div className="space-y-3">
+                    <h3 className="font-medium text-gray-900 dark:text-white">Selected Files:</h3>
+                    {selectedFiles.map((file, index) => (
+                      <div key={index} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                        <div className="flex items-center space-x-3">
+                          <FileText className="h-5 w-5 text-gray-400" />
+                          <div>
+                            <p className="text-sm font-medium text-gray-900 dark:text-white">{file.name}</p>
+                            <p className="text-xs text-gray-500 dark:text-gray-400">
+                              {(file.size / 1024 / 1024).toFixed(2)} MB
+                            </p>
+                          </div>
+                        </div>
+                        <button
+                          onClick={() => removeFile(index)}
+                          className="text-red-500 hover:text-red-700 p-1"
+                        >
+                          <X className="h-4 w-4" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Action Buttons */}
+                <div className="flex justify-end space-x-4">
+                  <button
+                    onClick={() => setShowUploadModal(false)}
+                    className="px-6 py-2 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleFileUpload}
+                    disabled={selectedFiles.length === 0}
+                    className="px-6 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white rounded-lg transition-colors flex items-center"
+                  >
+                    <Upload className="h-4 w-4 mr-2" />
+                    Upload Materials
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+
+        {/* Announcement Modal */}
         {showAnnouncementModal && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
             <motion.div
@@ -562,7 +949,7 @@ const FacultyDashboard: React.FC = () => {
                   onClick={() => setShowAnnouncementModal(false)}
                   className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
                 >
-                  ×
+                  <X className="h-6 w-6" />
                 </button>
               </div>
               <form onSubmit={(e) => {
