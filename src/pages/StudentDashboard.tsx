@@ -15,7 +15,14 @@ import {
   MessageSquare,
   Star,
   Target,
-  Activity
+  Activity,
+  X,
+  GraduationCap,
+  User,
+  Mail,
+  Phone,
+  MapPin,
+  CreditCard
 } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, RadialBarChart, RadialBar, BarChart, Bar } from 'recharts';
 import { motion } from 'framer-motion';
@@ -32,12 +39,18 @@ const StudentDashboard: React.FC = () => {
     gpa: 3.85,
     attendanceRate: 92.5,
     completedCredits: 140,
-    totalCredits: 160
+    totalCredits: 160,
+    email: 'john.doe@campus.edu',
+    phone: '+1 (555) 123-4567',
+    address: '123 Campus Drive, University City, UC 12345',
+    enrollmentDate: '2022-08-15',
+    expectedGraduation: '2026-05-15'
   });
 
   const [showGradeModal, setShowGradeModal] = useState(false);
   const [showScheduleModal, setShowScheduleModal] = useState(false);
   const [showAssignmentModal, setShowAssignmentModal] = useState(false);
+  const [showTranscriptModal, setShowTranscriptModal] = useState(false);
 
   const performanceData = [
     { month: 'Jan', gpa: 3.2 },
@@ -74,9 +87,41 @@ const StudentDashboard: React.FC = () => {
   ];
 
   const recentAnnouncements = [
-    { id: 1, title: 'Spring Break Schedule', content: 'Campus will be closed from March 20-27', time: '2 hours ago' },
-    { id: 2, title: 'Library Extended Hours', content: 'Open 24/7 during finals week', time: '1 day ago' },
-    { id: 3, title: 'Registration Opens', content: 'Fall 2024 course registration begins April 1', time: '2 days ago' }
+    { 
+      id: 1, 
+      title: 'Spring Break Schedule', 
+      content: 'Campus will be closed from March 20-27', 
+      time: '2 hours ago',
+      type: 'announcement'
+    },
+    { 
+      id: 2, 
+      title: 'New Message from Dr. Smith', 
+      content: 'Assignment deadline extended to next Friday', 
+      time: '1 day ago',
+      type: 'message'
+    },
+    { 
+      id: 3, 
+      title: 'Library Extended Hours', 
+      content: 'Open 24/7 during finals week', 
+      time: '1 day ago',
+      type: 'announcement'
+    },
+    { 
+      id: 4, 
+      title: 'Message from Prof. Johnson', 
+      content: 'Please review the updated syllabus for Database Systems', 
+      time: '2 days ago',
+      type: 'message'
+    },
+    { 
+      id: 5, 
+      title: 'Registration Opens', 
+      content: 'Fall 2024 course registration begins April 1', 
+      time: '2 days ago',
+      type: 'announcement'
+    }
   ];
 
   const assignments = [
@@ -84,6 +129,67 @@ const StudentDashboard: React.FC = () => {
     { id: 2, title: 'Database Design Project', course: 'CS402', dueDate: '2024-03-18', status: 'submitted' },
     { id: 3, title: 'React Application', course: 'CS403', dueDate: '2024-03-25', status: 'in-progress' }
   ];
+
+  // Comprehensive transcript data
+  const transcriptData = {
+    personalInfo: {
+      name: studentData.name,
+      studentId: studentData.studentId,
+      department: studentData.department,
+      program: 'Bachelor of Science in Computer Science',
+      enrollmentDate: studentData.enrollmentDate,
+      expectedGraduation: studentData.expectedGraduation,
+      currentGPA: studentData.gpa,
+      totalCredits: studentData.completedCredits,
+      requiredCredits: studentData.totalCredits
+    },
+    semesters: [
+      {
+        term: 'Fall 2022',
+        courses: [
+          { code: 'CS101', name: 'Introduction to Programming', credits: 3, grade: 'A', points: 4.0 },
+          { code: 'MATH101', name: 'Calculus I', credits: 4, grade: 'B+', points: 3.3 },
+          { code: 'ENG101', name: 'English Composition', credits: 3, grade: 'A-', points: 3.7 },
+          { code: 'PHYS101', name: 'Physics I', credits: 4, grade: 'B', points: 3.0 }
+        ],
+        gpa: 3.43,
+        credits: 14
+      },
+      {
+        term: 'Spring 2023',
+        courses: [
+          { code: 'CS102', name: 'Object-Oriented Programming', credits: 3, grade: 'A', points: 4.0 },
+          { code: 'MATH102', name: 'Calculus II', credits: 4, grade: 'A-', points: 3.7 },
+          { code: 'CS201', name: 'Data Structures', credits: 3, grade: 'A', points: 4.0 },
+          { code: 'HIST101', name: 'World History', credits: 3, grade: 'B+', points: 3.3 }
+        ],
+        gpa: 3.75,
+        credits: 13
+      },
+      {
+        term: 'Fall 2023',
+        courses: [
+          { code: 'CS301', name: 'Database Systems', credits: 3, grade: 'B+', points: 3.3 },
+          { code: 'CS302', name: 'Computer Networks', credits: 3, grade: 'A-', points: 3.7 },
+          { code: 'MATH201', name: 'Discrete Mathematics', credits: 3, grade: 'A', points: 4.0 },
+          { code: 'ECON101', name: 'Microeconomics', credits: 3, grade: 'B', points: 3.0 }
+        ],
+        gpa: 3.5,
+        credits: 12
+      },
+      {
+        term: 'Spring 2024',
+        courses: [
+          { code: 'CS401', name: 'Advanced Algorithms', credits: 3, grade: 'A-', points: 3.7 },
+          { code: 'CS402', name: 'Database Systems', credits: 3, grade: 'B+', points: 3.3 },
+          { code: 'CS403', name: 'Web Development', credits: 4, grade: 'A', points: 4.0 },
+          { code: 'CS404', name: 'Software Engineering', credits: 3, grade: 'A-', points: 3.7 }
+        ],
+        gpa: 3.68,
+        credits: 13
+      }
+    ]
+  };
 
   const viewGrades = () => {
     setShowGradeModal(true);
@@ -101,10 +207,92 @@ const StudentDashboard: React.FC = () => {
   };
 
   const downloadTranscript = () => {
-    toast.success('Downloading official transcript...');
-    setTimeout(() => {
-      toast.success('Transcript downloaded successfully!');
-    }, 2000);
+    setShowTranscriptModal(true);
+    toast.success('Opening official transcript');
+  };
+
+  const generateTranscriptPDF = () => {
+    // Generate comprehensive transcript content
+    const transcriptContent = `
+OFFICIAL ACADEMIC TRANSCRIPT
+Smart Campus Management System
+Generated on: ${new Date().toLocaleString()}
+
+========================================
+STUDENT INFORMATION
+========================================
+Name: ${transcriptData.personalInfo.name}
+Student ID: ${transcriptData.personalInfo.studentId}
+Program: ${transcriptData.personalInfo.program}
+Department: ${transcriptData.personalInfo.department}
+Enrollment Date: ${new Date(transcriptData.personalInfo.enrollmentDate).toLocaleDateString()}
+Expected Graduation: ${new Date(transcriptData.personalInfo.expectedGraduation).toLocaleDateString()}
+
+========================================
+ACADEMIC SUMMARY
+========================================
+Current GPA: ${transcriptData.personalInfo.currentGPA}
+Total Credits Completed: ${transcriptData.personalInfo.totalCredits}
+Credits Required for Graduation: ${transcriptData.personalInfo.requiredCredits}
+Academic Standing: Good Standing
+
+========================================
+SEMESTER-BY-SEMESTER RECORD
+========================================
+
+${transcriptData.semesters.map(semester => `
+${semester.term.toUpperCase()}
+Credits: ${semester.credits} | GPA: ${semester.gpa}
+${'─'.repeat(50)}
+${semester.courses.map(course => 
+  `${course.code.padEnd(8)} ${course.name.padEnd(30)} ${course.credits} ${course.grade.padEnd(3)} ${course.points.toFixed(1)}`
+).join('\n')}
+
+`).join('')}
+
+========================================
+GRADE POINT AVERAGE CALCULATION
+========================================
+${transcriptData.semesters.map(semester => 
+  `${semester.term}: ${semester.gpa} GPA (${semester.credits} credits)`
+).join('\n')}
+
+Cumulative GPA: ${transcriptData.personalInfo.currentGPA}
+Total Credits: ${transcriptData.personalInfo.totalCredits}
+
+========================================
+GRADING SCALE
+========================================
+A   = 4.0    A-  = 3.7    B+  = 3.3
+B   = 3.0    B-  = 2.7    C+  = 2.3
+C   = 2.0    C-  = 1.7    D+  = 1.3
+D   = 1.0    F   = 0.0
+
+========================================
+CERTIFICATION
+========================================
+This is to certify that the above is a true and complete record of the academic work completed by the above-named student at Smart Campus Management System.
+
+Issued: ${new Date().toLocaleDateString()}
+Registrar's Office
+Smart Campus Management System
+
+*** OFFICIAL TRANSCRIPT ***
+*** NOT VALID WITHOUT OFFICIAL SEAL ***
+    `;
+
+    // Create and download the transcript
+    const blob = new Blob([transcriptContent], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `transcript-${studentData.studentId}-${new Date().toISOString().split('T')[0]}.txt`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    
+    toast.success('Official transcript downloaded successfully!');
   };
 
   const registerForCourse = () => {
@@ -146,6 +334,16 @@ const StudentDashboard: React.FC = () => {
     toast.success('Opening messages - you can now chat with faculty');
   };
 
+  const handleAnnouncementClick = (announcement: any) => {
+    if (announcement.type === 'message') {
+      // Open messages when clicking on message-type announcements
+      openMessages();
+    } else {
+      // For regular announcements, just show a toast
+      toast.info(`Viewing: ${announcement.title}`);
+    }
+  };
+
   const getEventIcon = (type: string) => {
     switch (type) {
       case 'quiz': return <FileText className="h-4 w-4 text-blue-500" />;
@@ -163,6 +361,14 @@ const StudentDashboard: React.FC = () => {
       case 'in-progress': return 'bg-yellow-50 text-yellow-700 border-yellow-200';
       default: return 'bg-gray-50 text-gray-700 border-gray-200';
     }
+  };
+
+  const getGradePoints = (grade: string) => {
+    const gradeMap: { [key: string]: number } = {
+      'A': 4.0, 'A-': 3.7, 'B+': 3.3, 'B': 3.0, 'B-': 2.7,
+      'C+': 2.3, 'C': 2.0, 'C-': 1.7, 'D+': 1.3, 'D': 1.0, 'F': 0.0
+    };
+    return gradeMap[grade] || 0.0;
   };
 
   return (
@@ -455,10 +661,25 @@ const StudentDashboard: React.FC = () => {
             </div>
             <div className="space-y-4">
               {recentAnnouncements.map((announcement) => (
-                <div key={announcement.id} className="p-4 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+                <div 
+                  key={announcement.id} 
+                  className={`p-4 rounded-lg border border-gray-200 dark:border-gray-700 transition-colors ${
+                    announcement.type === 'message' 
+                      ? 'hover:bg-blue-50 dark:hover:bg-blue-900/20 cursor-pointer' 
+                      : 'hover:bg-gray-50 dark:hover:bg-gray-700'
+                  }`}
+                  onClick={() => handleAnnouncementClick(announcement)}
+                >
                   <div className="flex justify-between items-start">
                     <div className="flex-1">
-                      <h4 className="font-medium text-gray-900 dark:text-white">{announcement.title}</h4>
+                      <div className="flex items-center space-x-2">
+                        <h4 className={`font-medium ${announcement.type === 'message' ? 'text-blue-700 dark:text-blue-300' : 'text-gray-900 dark:text-white'}`}>
+                          {announcement.title}
+                        </h4>
+                        {announcement.type === 'message' && (
+                          <MessageSquare className="h-4 w-4 text-blue-500" />
+                        )}
+                      </div>
                       <p className="text-sm text-gray-600 dark:text-gray-300 mt-1">{announcement.content}</p>
                     </div>
                     <span className="text-xs text-gray-400 dark:text-gray-500 whitespace-nowrap ml-4">
@@ -485,7 +706,7 @@ const StudentDashboard: React.FC = () => {
                   onClick={() => setShowGradeModal(false)}
                   className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
                 >
-                  ×
+                  <X className="h-6 w-6" />
                 </button>
               </div>
               <ResponsiveContainer width="100%" height={300}>
@@ -514,7 +735,7 @@ const StudentDashboard: React.FC = () => {
                   onClick={() => setShowScheduleModal(false)}
                   className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
                 >
-                  ×
+                  <X className="h-6 w-6" />
                 </button>
               </div>
               <div className="space-y-4">
@@ -544,7 +765,7 @@ const StudentDashboard: React.FC = () => {
                   onClick={() => setShowAssignmentModal(false)}
                   className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
                 >
-                  ×
+                  <X className="h-6 w-6" />
                 </button>
               </div>
               <div className="space-y-4">
@@ -563,6 +784,135 @@ const StudentDashboard: React.FC = () => {
                     </div>
                   </div>
                 ))}
+              </div>
+            </motion.div>
+          </div>
+        )}
+
+        {/* Official Transcript Modal */}
+        {showTranscriptModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="bg-white dark:bg-gray-800 rounded-xl p-6 w-full max-w-4xl max-h-[90vh] overflow-y-auto"
+            >
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-xl font-bold text-gray-900 dark:text-white">Official Academic Transcript</h2>
+                <button
+                  onClick={() => setShowTranscriptModal(false)}
+                  className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                >
+                  <X className="h-6 w-6" />
+                </button>
+              </div>
+
+              {/* Student Information Header */}
+              <div className="bg-blue-50 dark:bg-blue-900/20 p-6 rounded-lg mb-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div>
+                    <h3 className="font-semibold text-blue-900 dark:text-blue-300 mb-3">Student Information</h3>
+                    <div className="space-y-2 text-sm">
+                      <div className="flex items-center">
+                        <User className="h-4 w-4 text-blue-600 mr-2" />
+                        <span className="text-gray-600 dark:text-gray-300">Name:</span>
+                        <span className="ml-2 font-medium text-gray-900 dark:text-white">{transcriptData.personalInfo.name}</span>
+                      </div>
+                      <div className="flex items-center">
+                        <GraduationCap className="h-4 w-4 text-blue-600 mr-2" />
+                        <span className="text-gray-600 dark:text-gray-300">Student ID:</span>
+                        <span className="ml-2 font-medium text-gray-900 dark:text-white">{transcriptData.personalInfo.studentId}</span>
+                      </div>
+                      <div className="flex items-center">
+                        <BookOpen className="h-4 w-4 text-blue-600 mr-2" />
+                        <span className="text-gray-600 dark:text-gray-300">Program:</span>
+                        <span className="ml-2 font-medium text-gray-900 dark:text-white">{transcriptData.personalInfo.program}</span>
+                      </div>
+                    </div>
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-blue-900 dark:text-blue-300 mb-3">Academic Summary</h3>
+                    <div className="space-y-2 text-sm">
+                      <div>
+                        <span className="text-gray-600 dark:text-gray-300">Current GPA:</span>
+                        <span className="ml-2 font-bold text-green-600 text-lg">{transcriptData.personalInfo.currentGPA}</span>
+                      </div>
+                      <div>
+                        <span className="text-gray-600 dark:text-gray-300">Credits Completed:</span>
+                        <span className="ml-2 font-medium text-gray-900 dark:text-white">{transcriptData.personalInfo.totalCredits}/{transcriptData.personalInfo.requiredCredits}</span>
+                      </div>
+                      <div>
+                        <span className="text-gray-600 dark:text-gray-300">Expected Graduation:</span>
+                        <span className="ml-2 font-medium text-gray-900 dark:text-white">{new Date(transcriptData.personalInfo.expectedGraduation).toLocaleDateString()}</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Semester Records */}
+              <div className="space-y-6">
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Academic Record</h3>
+                {transcriptData.semesters.map((semester, index) => (
+                  <div key={index} className="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
+                    <div className="flex justify-between items-center mb-4">
+                      <h4 className="font-semibold text-gray-900 dark:text-white">{semester.term}</h4>
+                      <div className="text-right">
+                        <p className="text-sm text-gray-600 dark:text-gray-300">Semester GPA: <span className="font-semibold">{semester.gpa}</span></p>
+                        <p className="text-sm text-gray-600 dark:text-gray-300">Credits: <span className="font-semibold">{semester.credits}</span></p>
+                      </div>
+                    </div>
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-sm">
+                        <thead className="bg-gray-50 dark:bg-gray-700">
+                          <tr>
+                            <th className="px-4 py-2 text-left text-gray-600 dark:text-gray-300">Course Code</th>
+                            <th className="px-4 py-2 text-left text-gray-600 dark:text-gray-300">Course Name</th>
+                            <th className="px-4 py-2 text-center text-gray-600 dark:text-gray-300">Credits</th>
+                            <th className="px-4 py-2 text-center text-gray-600 dark:text-gray-300">Grade</th>
+                            <th className="px-4 py-2 text-center text-gray-600 dark:text-gray-300">Points</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {semester.courses.map((course, courseIndex) => (
+                            <tr key={courseIndex} className="border-t border-gray-200 dark:border-gray-700">
+                              <td className="px-4 py-2 font-medium text-gray-900 dark:text-white">{course.code}</td>
+                              <td className="px-4 py-2 text-gray-700 dark:text-gray-300">{course.name}</td>
+                              <td className="px-4 py-2 text-center text-gray-700 dark:text-gray-300">{course.credits}</td>
+                              <td className="px-4 py-2 text-center">
+                                <span className={`font-semibold ${
+                                  course.points >= 3.7 ? 'text-green-600' :
+                                  course.points >= 3.0 ? 'text-blue-600' :
+                                  course.points >= 2.0 ? 'text-yellow-600' : 'text-red-600'
+                                }`}>
+                                  {course.grade}
+                                </span>
+                              </td>
+                              <td className="px-4 py-2 text-center text-gray-700 dark:text-gray-300">{course.points.toFixed(1)}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex justify-end space-x-4 mt-6 pt-6 border-t border-gray-200 dark:border-gray-700">
+                <button
+                  onClick={() => setShowTranscriptModal(false)}
+                  className="px-6 py-2 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+                >
+                  Close
+                </button>
+                <button
+                  onClick={generateTranscriptPDF}
+                  className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors flex items-center"
+                >
+                  <Download className="h-4 w-4 mr-2" />
+                  Download Official Transcript
+                </button>
               </div>
             </motion.div>
           </div>
