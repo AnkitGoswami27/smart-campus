@@ -20,7 +20,8 @@ import {
   Filter,
   BarChart3,
   PieChart,
-  Settings
+  Settings,
+  Shield
 } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart as RechartsPieChart, Cell, BarChart, Bar, Pie } from 'recharts';
 import { motion } from 'framer-motion';
@@ -33,6 +34,13 @@ const AdminDashboard: React.FC = () => {
   const [showManageResourcesModal, setShowManageResourcesModal] = useState(false);
   const [showManageUsersModal, setShowManageUsersModal] = useState(false);
   const [showAnalyticsModal, setShowAnalyticsModal] = useState(false);
+  const [showAddUserModal, setShowAddUserModal] = useState(false);
+  const [showEditUserModal, setShowEditUserModal] = useState(false);
+  const [showUserDetailsModal, setShowUserDetailsModal] = useState(false);
+  const [selectedUser, setSelectedUser] = useState<any>(null);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filterRole, setFilterRole] = useState('');
+  
   const [recentActivities, setRecentActivities] = useState([
     { id: 1, action: 'Student enrolled in CS101', user: 'John Doe', time: '2 hours ago', type: 'enrollment' },
     { id: 2, action: 'New course created: Advanced AI', user: 'Dr. Smith', time: '4 hours ago', type: 'course' },
@@ -65,6 +73,61 @@ const AdminDashboard: React.FC = () => {
     phone: '',
     address: ''
   });
+
+  const [newUser, setNewUser] = useState({
+    name: '',
+    email: '',
+    role: 'student',
+    department: '',
+    studentId: '',
+    facultyId: ''
+  });
+
+  const [users, setUsers] = useState([
+    {
+      id: 1,
+      name: 'John Doe',
+      email: 'john.doe@campus.edu',
+      role: 'student',
+      studentId: 'ST2024001',
+      department: 'Computer Science',
+      status: 'active',
+      joinDate: '2024-01-15',
+      lastLogin: '2024-03-14 10:30'
+    },
+    {
+      id: 2,
+      name: 'Dr. Sarah Johnson',
+      email: 'sarah.johnson@campus.edu',
+      role: 'faculty',
+      facultyId: 'FAC001',
+      department: 'Computer Science',
+      status: 'active',
+      joinDate: '2020-08-01',
+      lastLogin: '2024-03-14 09:15'
+    },
+    {
+      id: 3,
+      name: 'Admin User',
+      email: 'admin@campus.edu',
+      role: 'admin',
+      department: 'Administration',
+      status: 'active',
+      joinDate: '2019-01-01',
+      lastLogin: '2024-03-14 08:00'
+    },
+    {
+      id: 4,
+      name: 'Jane Smith',
+      email: 'jane.smith@campus.edu',
+      role: 'student',
+      studentId: 'ST2024002',
+      department: 'Engineering',
+      status: 'active',
+      joinDate: '2024-01-20',
+      lastLogin: '2024-03-13 16:45'
+    }
+  ]);
 
   const adminStats = {
     totalStudents: 1247,
@@ -126,12 +189,6 @@ const AdminDashboard: React.FC = () => {
     }
   ];
 
-  const users = [
-    { id: 1, name: 'Dr. Sarah Johnson', role: 'Faculty', department: 'Computer Science', status: 'active' },
-    { id: 2, name: 'John Doe', role: 'Student', department: 'Computer Science', status: 'active' },
-    { id: 3, name: 'Prof. Michael Brown', role: 'Faculty', department: 'Engineering', status: 'active' }
-  ];
-
   const addActivity = (action: string, user: string, type: string) => {
     const newActivity = {
       id: Date.now(),
@@ -177,6 +234,86 @@ const AdminDashboard: React.FC = () => {
     } else {
       toast.error('Please fill in all required fields');
     }
+  };
+
+  const handleAddUser = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (newUser.name && newUser.email && newUser.role) {
+      const userId = Date.now();
+      const generatedId = newUser.role === 'student' 
+        ? `ST${new Date().getFullYear()}${String(users.filter(u => u.role === 'student').length + 1).padStart(3, '0')}`
+        : newUser.role === 'faculty'
+        ? `FAC${String(users.filter(u => u.role === 'faculty').length + 1).padStart(3, '0')}`
+        : '';
+
+      const user = {
+        id: userId,
+        ...newUser,
+        studentId: newUser.role === 'student' ? generatedId : '',
+        facultyId: newUser.role === 'faculty' ? generatedId : '',
+        status: 'active',
+        joinDate: new Date().toISOString().split('T')[0],
+        lastLogin: 'Never'
+      };
+
+      setUsers(prev => [user, ...prev]);
+      setNewUser({ name: '', email: '', role: 'student', department: '', studentId: '', facultyId: '' });
+      setShowAddUserModal(false);
+      addActivity(`New ${newUser.role} added: ${newUser.name}`, 'Admin', 'user');
+      toast.success(`${newUser.role} added successfully!`);
+    } else {
+      toast.error('Please fill in all required fields');
+    }
+  };
+
+  const handleEditUser = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (selectedUser && newUser.name && newUser.email) {
+      setUsers(prev => prev.map(user => 
+        user.id === selectedUser.id 
+          ? { ...user, ...newUser }
+          : user
+      ));
+      setShowEditUserModal(false);
+      addActivity(`User updated: ${newUser.name}`, 'Admin', 'user');
+      toast.success('User updated successfully!');
+    } else {
+      toast.error('Please fill in all required fields');
+    }
+  };
+
+  const toggleUserStatus = (userId: number) => {
+    setUsers(prev => prev.map(user => 
+      user.id === userId 
+        ? { ...user, status: user.status === 'active' ? 'inactive' : 'active' }
+        : user
+    ));
+    toast.success('User status updated');
+  };
+
+  const deleteUser = (userId: number) => {
+    const user = users.find(u => u.id === userId);
+    setUsers(prev => prev.filter(user => user.id !== userId));
+    addActivity(`User deleted: ${user?.name}`, 'Admin', 'user');
+    toast.success('User deleted successfully');
+  };
+
+  const viewUserDetails = (user: any) => {
+    setSelectedUser(user);
+    setShowUserDetailsModal(true);
+  };
+
+  const editUser = (user: any) => {
+    setSelectedUser(user);
+    setNewUser({
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      department: user.department,
+      studentId: user.studentId || '',
+      facultyId: user.facultyId || ''
+    });
+    setShowEditUserModal(true);
   };
 
   const generateReport = () => {
@@ -232,10 +369,32 @@ Report generated by Smart Campus Management System
         return 'bg-yellow-50 text-yellow-700 border-yellow-200 dark:bg-yellow-900/20 dark:text-yellow-300 dark:border-yellow-800';
       case 'active':
         return 'bg-green-50 text-green-700 border-green-200 dark:bg-green-900/20 dark:text-green-300 dark:border-green-800';
+      case 'inactive':
+        return 'bg-red-50 text-red-700 border-red-200 dark:bg-red-900/20 dark:text-red-300 dark:border-red-800';
       default:
         return 'bg-gray-50 text-gray-700 border-gray-200 dark:bg-gray-900/20 dark:text-gray-300 dark:border-gray-800';
     }
   };
+
+  const getRoleIcon = (role: string) => {
+    switch (role) {
+      case 'admin':
+        return <Shield className="h-4 w-4" />;
+      case 'faculty':
+        return <GraduationCap className="h-4 w-4" />;
+      case 'student':
+        return <Users className="h-4 w-4" />;
+      default:
+        return <Users className="h-4 w-4" />;
+    }
+  };
+
+  const filteredUsers = users.filter(user => {
+    const matchesSearch = user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         user.email.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesRole = filterRole === '' || user.role === filterRole;
+    return matchesSearch && matchesRole;
+  });
 
   return (
     <Layout>
@@ -1012,16 +1171,49 @@ Report generated by Smart Campus Management System
             <motion.div
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
-              className="bg-white dark:bg-gray-800 rounded-xl p-6 w-full max-w-4xl max-h-[80vh] overflow-y-auto"
+              className="bg-white dark:bg-gray-800 rounded-xl p-6 w-full max-w-6xl max-h-[80vh] overflow-y-auto"
             >
               <div className="flex items-center justify-between mb-6">
                 <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Manage Users</h2>
-                <button
-                  onClick={() => setShowManageUsersModal(false)}
-                  className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                <div className="flex items-center space-x-4">
+                  <button
+                    onClick={() => setShowAddUserModal(true)}
+                    className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center transition-colors"
+                  >
+                    <Plus className="h-4 w-4 mr-2" />
+                    Add User
+                  </button>
+                  <button
+                    onClick={() => setShowManageUsersModal(false)}
+                    className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                  >
+                    <X className="h-6 w-6" />
+                  </button>
+                </div>
+              </div>
+
+              {/* Search and Filter */}
+              <div className="mb-6 flex items-center space-x-4">
+                <div className="relative flex-1">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                  <input
+                    type="text"
+                    placeholder="Search users..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
+                </div>
+                <select
+                  value={filterRole}
+                  onChange={(e) => setFilterRole(e.target.value)}
+                  className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500"
                 >
-                  <X className="h-6 w-6" />
-                </button>
+                  <option value="">All Roles</option>
+                  <option value="student">Students</option>
+                  <option value="faculty">Faculty</option>
+                  <option value="admin">Admins</option>
+                </select>
               </div>
 
               <div className="overflow-x-auto">
@@ -1046,7 +1238,7 @@ Report generated by Smart Campus Management System
                     </tr>
                   </thead>
                   <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-                    {users.map((user) => (
+                    {filteredUsers.map((user) => (
                       <tr key={user.id} className="hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="flex items-center">
@@ -1057,14 +1249,18 @@ Report generated by Smart Campus Management System
                             </div>
                             <div className="ml-4">
                               <div className="text-sm font-medium text-gray-900 dark:text-white">{user.name}</div>
+                              <div className="text-sm text-gray-500 dark:text-gray-400">{user.email}</div>
                             </div>
                           </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm text-gray-900 dark:text-white">{user.role}</div>
+                          <div className="flex items-center">
+                            {getRoleIcon(user.role)}
+                            <span className="ml-2 text-sm text-gray-900 dark:text-white capitalize">{user.role}</span>
+                          </div>
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm text-gray-900 dark:text-white">{user.department}</div>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
+                          {user.department}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <span className={`px-2 py-1 rounded-full text-xs font-medium border ${getStatusColor(user.status)}`}>
@@ -1073,10 +1269,28 @@ Report generated by Smart Campus Management System
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                           <div className="flex space-x-2">
-                            <button className="text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300">
+                            <button
+                              onClick={() => viewUserDetails(user)}
+                              className="text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300"
+                            >
+                              <Eye className="h-4 w-4" />
+                            </button>
+                            <button
+                              onClick={() => editUser(user)}
+                              className="text-yellow-600 hover:text-yellow-900 dark:text-yellow-400 dark:hover:text-yellow-300"
+                            >
                               <Edit className="h-4 w-4" />
                             </button>
-                            <button className="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300">
+                            <button
+                              onClick={() => toggleUserStatus(user.id)}
+                              className="text-orange-600 hover:text-orange-900 dark:text-orange-400 dark:hover:text-orange-300"
+                            >
+                              <Settings className="h-4 w-4" />
+                            </button>
+                            <button
+                              onClick={() => deleteUser(user.id)}
+                              className="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300"
+                            >
                               <Trash2 className="h-4 w-4" />
                             </button>
                           </div>
@@ -1085,6 +1299,335 @@ Report generated by Smart Campus Management System
                     ))}
                   </tbody>
                 </table>
+              </div>
+            </motion.div>
+          </div>
+        )}
+
+        {/* Add User Modal */}
+        {showAddUserModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="bg-white dark:bg-gray-800 rounded-xl p-6 w-full max-w-2xl"
+            >
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-xl font-bold text-gray-900 dark:text-white">Add New User</h2>
+                <button
+                  onClick={() => setShowAddUserModal(false)}
+                  className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                >
+                  <X className="h-6 w-6" />
+                </button>
+              </div>
+
+              <form onSubmit={handleAddUser} className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Full Name *
+                    </label>
+                    <input
+                      type="text"
+                      value={newUser.name}
+                      onChange={(e) => setNewUser({ ...newUser, name: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      placeholder="Enter full name"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Email Address *
+                    </label>
+                    <input
+                      type="email"
+                      value={newUser.email}
+                      onChange={(e) => setNewUser({ ...newUser, email: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      placeholder="Enter email address"
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Role *
+                    </label>
+                    <select
+                      value={newUser.role}
+                      onChange={(e) => setNewUser({ ...newUser, role: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      required
+                    >
+                      <option value="student">Student</option>
+                      <option value="faculty">Faculty</option>
+                      <option value="admin">Admin</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Department *
+                    </label>
+                    <select
+                      value={newUser.department}
+                      onChange={(e) => setNewUser({ ...newUser, department: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      required
+                    >
+                      <option value="">Select Department</option>
+                      <option value="Computer Science">Computer Science</option>
+                      <option value="Engineering">Engineering</option>
+                      <option value="Mathematics">Mathematics</option>
+                      <option value="Physics">Physics</option>
+                      <option value="Administration">Administration</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg">
+                  <h4 className="font-medium text-blue-900 dark:text-blue-300 mb-2">Role Information</h4>
+                  <div className="text-sm text-blue-800 dark:text-blue-200">
+                    {newUser.role === 'student' && (
+                      <p>Student ID will be auto-generated (Format: ST{new Date().getFullYear()}XXX)</p>
+                    )}
+                    {newUser.role === 'faculty' && (
+                      <p>Faculty ID will be auto-generated (Format: FACXXX)</p>
+                    )}
+                    {newUser.role === 'admin' && (
+                      <p>Admin users have full system access and management privileges</p>
+                    )}
+                  </div>
+                </div>
+
+                <div className="flex justify-end space-x-4 pt-4">
+                  <button
+                    type="button"
+                    onClick={() => setShowAddUserModal(false)}
+                    className="px-6 py-2 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
+                  >
+                    Add User
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </div>
+        )}
+
+        {/* Edit User Modal */}
+        {showEditUserModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="bg-white dark:bg-gray-800 rounded-xl p-6 w-full max-w-2xl"
+            >
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-xl font-bold text-gray-900 dark:text-white">Edit User</h2>
+                <button
+                  onClick={() => setShowEditUserModal(false)}
+                  className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                >
+                  <X className="h-6 w-6" />
+                </button>
+              </div>
+
+              <form onSubmit={handleEditUser} className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Full Name *
+                    </label>
+                    <input
+                      type="text"
+                      value={newUser.name}
+                      onChange={(e) => setNewUser({ ...newUser, name: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Email Address *
+                    </label>
+                    <input
+                      type="email"
+                      value={newUser.email}
+                      onChange={(e) => setNewUser({ ...newUser, email: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Role *
+                    </label>
+                    <select
+                      value={newUser.role}
+                      onChange={(e) => setNewUser({ ...newUser, role: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      required
+                    >
+                      <option value="student">Student</option>
+                      <option value="faculty">Faculty</option>
+                      <option value="admin">Admin</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Department *
+                    </label>
+                    <select
+                      value={newUser.department}
+                      onChange={(e) => setNewUser({ ...newUser, department: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      required
+                    >
+                      <option value="">Select Department</option>
+                      <option value="Computer Science">Computer Science</option>
+                      <option value="Engineering">Engineering</option>
+                      <option value="Mathematics">Mathematics</option>
+                      <option value="Physics">Physics</option>
+                      <option value="Administration">Administration</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="flex justify-end space-x-4 pt-4">
+                  <button
+                    type="button"
+                    onClick={() => setShowEditUserModal(false)}
+                    className="px-6 py-2 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
+                  >
+                    Update User
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </div>
+        )}
+
+        {/* User Details Modal */}
+        {showUserDetailsModal && selectedUser && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="bg-white dark:bg-gray-800 rounded-xl p-6 w-full max-w-2xl"
+            >
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-xl font-bold text-gray-900 dark:text-white">User Details</h2>
+                <button
+                  onClick={() => setShowUserDetailsModal(false)}
+                  className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                >
+                  <X className="h-6 w-6" />
+                </button>
+              </div>
+
+              <div className="space-y-6">
+                <div className="flex items-center space-x-4">
+                  <div className="w-16 h-16 rounded-full bg-gradient-to-r from-blue-500 to-purple-600 flex items-center justify-center">
+                    <span className="text-white font-medium text-xl">
+                      {selectedUser.name.charAt(0)}
+                    </span>
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-semibold text-gray-900 dark:text-white">{selectedUser.name}</h3>
+                    <div className="flex items-center space-x-2">
+                      {getRoleIcon(selectedUser.role)}
+                      <span className="text-gray-600 dark:text-gray-300 capitalize">{selectedUser.role}</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div>
+                    <h4 className="font-medium text-gray-900 dark:text-white mb-3">Contact Information</h4>
+                    <div className="space-y-2 text-sm">
+                      <div>
+                        <span className="text-gray-500 dark:text-gray-400">Email:</span>
+                        <span className="ml-2 text-gray-900 dark:text-white">{selectedUser.email}</span>
+                      </div>
+                      <div>
+                        <span className="text-gray-500 dark:text-gray-400">Department:</span>
+                        <span className="ml-2 text-gray-900 dark:text-white">{selectedUser.department}</span>
+                      </div>
+                      {selectedUser.studentId && (
+                        <div>
+                          <span className="text-gray-500 dark:text-gray-400">Student ID:</span>
+                          <span className="ml-2 text-gray-900 dark:text-white">{selectedUser.studentId}</span>
+                        </div>
+                      )}
+                      {selectedUser.facultyId && (
+                        <div>
+                          <span className="text-gray-500 dark:text-gray-400">Faculty ID:</span>
+                          <span className="ml-2 text-gray-900 dark:text-white">{selectedUser.facultyId}</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  <div>
+                    <h4 className="font-medium text-gray-900 dark:text-white mb-3">Account Information</h4>
+                    <div className="space-y-2 text-sm">
+                      <div>
+                        <span className="text-gray-500 dark:text-gray-400">Status:</span>
+                        <span className={`ml-2 px-2 py-1 rounded-full text-xs font-medium border ${getStatusColor(selectedUser.status)}`}>
+                          {selectedUser.status}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-gray-500 dark:text-gray-400">Join Date:</span>
+                        <span className="ml-2 text-gray-900 dark:text-white">{new Date(selectedUser.joinDate).toLocaleDateString()}</span>
+                      </div>
+                      <div>
+                        <span className="text-gray-500 dark:text-gray-400">Last Login:</span>
+                        <span className="ml-2 text-gray-900 dark:text-white">{selectedUser.lastLogin}</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex justify-end space-x-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+                  <button
+                    onClick={() => toggleUserStatus(selectedUser.id)}
+                    className={`px-4 py-2 rounded-lg transition-colors ${
+                      selectedUser.status === 'active'
+                        ? 'bg-red-50 text-red-600 hover:bg-red-100 dark:bg-red-900/20 dark:text-red-400'
+                        : 'bg-green-50 text-green-600 hover:bg-green-100 dark:bg-green-900/20 dark:text-green-400'
+                    }`}
+                  >
+                    {selectedUser.status === 'active' ? 'Deactivate' : 'Activate'}
+                  </button>
+                  <button
+                    onClick={() => {
+                      deleteUser(selectedUser.id);
+                      setShowUserDetailsModal(false);
+                    }}
+                    className="px-4 py-2 bg-red-50 text-red-600 hover:bg-red-100 dark:bg-red-900/20 dark:text-red-400 rounded-lg transition-colors"
+                  >
+                    Delete User
+                  </button>
+                </div>
               </div>
             </motion.div>
           </div>
