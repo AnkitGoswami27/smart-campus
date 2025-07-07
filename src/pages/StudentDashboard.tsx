@@ -340,7 +340,7 @@ Smart Campus Management System
       openMessages();
     } else {
       // For regular announcements, just show a toast
-      toast.info(`Viewing: ${announcement.title}`);
+      toast(`Viewing: ${announcement.title}`);
     }
   };
 
