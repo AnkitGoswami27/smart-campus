@@ -22,25 +22,31 @@ import {
   Mail,
   Phone,
   MapPin,
-  CreditCard
+  CreditCard,
+  QrCode,
+  Scan,
+  Wifi,
+  Navigation
 } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, RadialBarChart, RadialBar, BarChart, Bar } from 'recharts';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../contexts/AuthContext';
 import toast from 'react-hot-toast';
 
 const StudentDashboard: React.FC = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [studentData, setStudentData] = useState({
-    name: 'John Doe',
-    studentId: 'ST2024001',
+    name: user?.name || 'John Doe',
+    studentId: user?.studentId || 'ST2024001',
     semester: '6th Semester',
-    department: 'Computer Science',
+    department: user?.department || 'Computer Science',
     gpa: 3.85,
     attendanceRate: 92.5,
     completedCredits: 140,
     totalCredits: 160,
-    email: 'john.doe@campus.edu',
+    email: user?.email || 'john.doe@campus.edu',
     phone: '+1 (555) 123-4567',
     address: '123 Campus Drive, University City, UC 12345',
     enrollmentDate: '2022-08-15',
@@ -51,6 +57,10 @@ const StudentDashboard: React.FC = () => {
   const [showScheduleModal, setShowScheduleModal] = useState(false);
   const [showAssignmentModal, setShowAssignmentModal] = useState(false);
   const [showTranscriptModal, setShowTranscriptModal] = useState(false);
+  const [showQRScanModal, setShowQRScanModal] = useState(false);
+  const [isScanning, setIsScanning] = useState(false);
+  const [location, setLocation] = useState<any>(null);
+  const [isOnCampusWifi, setIsOnCampusWifi] = useState(false);
 
   const performanceData = [
     { month: 'Jan', gpa: 3.2 },
@@ -190,6 +200,39 @@ const StudentDashboard: React.FC = () => {
       }
     ]
   };
+
+  // Check location and WiFi status
+  React.useEffect(() => {
+    // Get user location
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          setLocation({
+            latitude: position.coords.latitude,
+            longitude: position.coords.longitude,
+            accuracy: position.coords.accuracy
+          });
+        },
+        (error) => {
+          console.error('Error getting location:', error);
+        },
+        { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 }
+      );
+    }
+
+    // Simulate campus WiFi detection
+    const checkWifi = () => {
+      const connection = (navigator as any).connection || (navigator as any).mozConnection || (navigator as any).webkitConnection;
+      const isConnected = connection ? 
+        (connection.effectiveType === '4g' || connection.effectiveType === 'wifi') && Math.random() > 0.3 : 
+        Math.random() > 0.4;
+      setIsOnCampusWifi(isConnected);
+    };
+    
+    checkWifi();
+    const interval = setInterval(checkWifi, 10000);
+    return () => clearInterval(interval);
+  }, []);
 
   const viewGrades = () => {
     setShowGradeModal(true);
@@ -344,6 +387,54 @@ Smart Campus Management System
     }
   };
 
+  const openQRScanner = () => {
+    setShowQRScanModal(true);
+  };
+
+  const startQRScan = () => {
+    if (!location) {
+      toast.error('Location access required for attendance');
+      return;
+    }
+
+    if (!isOnCampusWifi) {
+      toast.error('Please connect to campus WiFi to mark attendance');
+      return;
+    }
+
+    setIsScanning(true);
+    toast.success('Starting QR scan...');
+
+    // Simulate QR scanning process
+    setTimeout(() => {
+      // Simulate successful attendance marking
+      const attendanceData = {
+        studentId: user?.studentId,
+        studentName: user?.name,
+        course: 'CS401', // This would come from the QR code
+        timestamp: new Date().toLocaleString(),
+        location: location,
+        method: 'QR Code',
+        status: 'present'
+      };
+
+      // Store attendance record
+      const existingAttendance = JSON.parse(localStorage.getItem('student-attendance') || '[]');
+      const newAttendance = [attendanceData, ...existingAttendance];
+      localStorage.setItem('student-attendance', JSON.stringify(newAttendance));
+
+      setIsScanning(false);
+      setShowQRScanModal(false);
+      toast.success('Attendance marked successfully!');
+      
+      // Update attendance rate
+      setStudentData(prev => ({
+        ...prev,
+        attendanceRate: Math.min(100, prev.attendanceRate + 0.5)
+      }));
+    }, 3000);
+  };
+
   const getEventIcon = (type: string) => {
     switch (type) {
       case 'quiz': return <FileText className="h-4 w-4 text-blue-500" />;
@@ -385,6 +476,13 @@ Smart Campus Management System
             </p>
           </div>
           <div className="mt-4 sm:mt-0 flex items-center space-x-4">
+            <button
+              onClick={openQRScanner}
+              className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium flex items-center transition-colors"
+            >
+              <QrCode className="h-4 w-4 mr-2" />
+              Scan QR
+            </button>
             <div className="text-right">
               <p className="text-sm text-gray-500 dark:text-gray-400">Current GPA</p>
               <p className="text-2xl font-bold text-green-600">{studentData.gpa}</p>
@@ -691,6 +789,103 @@ Smart Campus Management System
             </div>
           </motion.div>
         </div>
+
+        {/* QR Scanner Modal */}
+        {showQRScanModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="bg-white dark:bg-gray-800 rounded-xl p-6 w-full max-w-md"
+            >
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-xl font-bold text-gray-900 dark:text-white">QR Attendance Scanner</h2>
+                <button
+                  onClick={() => setShowQRScanModal(false)}
+                  className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                >
+                  <X className="h-6 w-6" />
+                </button>
+              </div>
+
+              <div className="text-center space-y-6">
+                {/* Status Indicators */}
+                <div className="space-y-3">
+                  <div className={`flex items-center justify-between p-3 rounded-lg ${
+                    location ? 'bg-green-50 dark:bg-green-900/20' : 'bg-red-50 dark:bg-red-900/20'
+                  }`}>
+                    <div className="flex items-center">
+                      <Navigation className="h-5 w-5 mr-2" />
+                      <span className="text-sm font-medium">Location</span>
+                    </div>
+                    <span className={`text-sm ${location ? 'text-green-600' : 'text-red-600'}`}>
+                      {location ? 'Verified' : 'Required'}
+                    </span>
+                  </div>
+                  
+                  <div className={`flex items-center justify-between p-3 rounded-lg ${
+                    isOnCampusWifi ? 'bg-green-50 dark:bg-green-900/20' : 'bg-red-50 dark:bg-red-900/20'
+                  }`}>
+                    <div className="flex items-center">
+                      <Wifi className="h-5 w-5 mr-2" />
+                      <span className="text-sm font-medium">Campus WiFi</span>
+                    </div>
+                    <span className={`text-sm ${isOnCampusWifi ? 'text-green-600' : 'text-red-600'}`}>
+                      {isOnCampusWifi ? 'Connected' : 'Not Connected'}
+                    </span>
+                  </div>
+                </div>
+
+                {/* QR Scanner Area */}
+                <div className="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-8">
+                  {isScanning ? (
+                    <div className="space-y-4">
+                      <div className="animate-spin mx-auto">
+                        <Scan className="h-16 w-16 text-blue-600" />
+                      </div>
+                      <p className="text-gray-600 dark:text-gray-300">Scanning QR code...</p>
+                      <p className="text-sm text-gray-500 dark:text-gray-400">
+                        Please hold the QR code steady
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      <QrCode className="h-16 w-16 text-gray-400 mx-auto" />
+                      <p className="text-gray-600 dark:text-gray-300">
+                        Ready to scan attendance QR code
+                      </p>
+                      <p className="text-sm text-gray-500 dark:text-gray-400">
+                        Position the QR code within the frame
+                      </p>
+                    </div>
+                  )}
+                </div>
+
+                {/* Action Buttons */}
+                <div className="space-y-3">
+                  <button
+                    onClick={startQRScan}
+                    disabled={!location || !isOnCampusWifi || isScanning}
+                    className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white py-3 px-4 rounded-lg font-medium transition-colors"
+                  >
+                    {isScanning ? 'Scanning...' : 'Start Scanning'}
+                  </button>
+                  
+                  {(!location || !isOnCampusWifi) && (
+                    <div className="text-sm text-red-600 dark:text-red-400">
+                      {!location && !isOnCampusWifi 
+                        ? 'Location access and campus WiFi required'
+                        : !location 
+                        ? 'Location access required'
+                        : 'Campus WiFi connection required'
+                      }
+                    </div>
+                  )}
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
 
         {/* Modals */}
         {showGradeModal && (

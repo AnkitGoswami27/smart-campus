@@ -9,11 +9,12 @@ interface User {
   studentId?: string;
   facultyId?: string;
   department?: string;
+  password?: string;
 }
 
 interface AuthContextType {
   user: User | null;
-  login: (role: 'student' | 'faculty' | 'admin') => void;
+  login: (email: string, password: string) => Promise<boolean>;
   logout: () => void;
   loading: boolean;
 }
@@ -28,37 +29,75 @@ export const useAuth = () => {
   return context;
 };
 
+// Demo users with simple credentials
+const demoUsers: User[] = [
+  {
+    id: 'admin-1',
+    name: 'Admin User',
+    email: 'admin@campus.edu',
+    password: 'admin123',
+    role: 'admin',
+    department: 'Administration'
+  },
+  {
+    id: 'faculty-1',
+    name: 'Dr. Sarah Johnson',
+    email: 'faculty@campus.edu',
+    password: 'faculty123',
+    role: 'faculty',
+    facultyId: 'FAC001',
+    department: 'Computer Science'
+  },
+  {
+    id: 'student-1',
+    name: 'John Doe',
+    email: 'student@campus.edu',
+    password: 'student123',
+    role: 'student',
+    studentId: 'ST2024001',
+    department: 'Computer Science'
+  }
+];
+
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    // Clear any existing user data on app start to always show login
-    localStorage.removeItem('currentUser');
-    setUser(null);
+    // Check if user is already logged in
+    const savedUser = localStorage.getItem('currentUser');
+    if (savedUser) {
+      try {
+        setUser(JSON.parse(savedUser));
+      } catch (error) {
+        localStorage.removeItem('currentUser');
+      }
+    }
   }, []);
 
-  const login = (role: 'student' | 'faculty' | 'admin') => {
-    const userData = {
-      id: `${role}-${Date.now()}`,
-      name: role === 'admin' ? 'Admin User' : role === 'faculty' ? 'Dr. Sarah Johnson' : 'John Doe',
-      email: `${role}@campus.edu`,
-      role: role,
-      avatar: '',
-      studentId: role === 'student' ? 'ST2024001' : undefined,
-      facultyId: role === 'faculty' ? 'FAC001' : undefined,
-      department: role === 'admin' ? 'Administration' : 'Computer Science'
-    };
-
-    setUser(userData);
-    localStorage.setItem('currentUser', JSON.stringify(userData));
+  const login = async (email: string, password: string): Promise<boolean> => {
+    setLoading(true);
+    
+    // Simulate API call delay
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    
+    const foundUser = demoUsers.find(u => u.email === email && u.password === password);
+    
+    if (foundUser) {
+      const { password: _, ...userWithoutPassword } = foundUser;
+      setUser(userWithoutPassword);
+      localStorage.setItem('currentUser', JSON.stringify(userWithoutPassword));
+      setLoading(false);
+      return true;
+    }
+    
+    setLoading(false);
+    return false;
   };
 
   const logout = () => {
     setUser(null);
     localStorage.removeItem('currentUser');
-    // Force navigation to login
-    window.location.href = '/login';
   };
 
   const value = {
