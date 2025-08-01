@@ -12,7 +12,7 @@ const Dashboard: React.FC = () => {
 
   useEffect(() => {
     if (!user) {
-      navigate('/login');
+      navigate('/');
       return;
     }
 

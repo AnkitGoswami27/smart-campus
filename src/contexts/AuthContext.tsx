@@ -64,15 +64,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    // Check if user is already logged in
-    const savedUser = localStorage.getItem('currentUser');
-    if (savedUser) {
-      try {
-        setUser(JSON.parse(savedUser));
-      } catch (error) {
-        localStorage.removeItem('currentUser');
-      }
-    }
+    // Always start with no user - force login on every app start
+    localStorage.removeItem('currentUser');
+    setUser(null);
   }, []);
 
   const login = async (email: string, password: string): Promise<boolean> => {

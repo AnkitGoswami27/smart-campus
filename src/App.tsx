@@ -88,8 +88,8 @@ function App() {
                 </ProtectedRoute>
               } />
 
-              {/* Catch all route redirects to login */}
-              <Route path="*" element={<Navigate to="/login" replace />} />
+              {/* Catch all route redirects to root (which shows login) */}
+              <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
             
             <Toaster 

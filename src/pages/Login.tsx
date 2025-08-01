@@ -13,9 +13,10 @@ const Login: React.FC = () => {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
 
-  if (user) {
-    return <Navigate to="/dashboard" replace />;
-  }
+  // Remove automatic redirect - let user explicitly login each time
+  // if (user) {
+  //   return <Navigate to="/dashboard" replace />;
+  // }
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
