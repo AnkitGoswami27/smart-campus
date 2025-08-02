@@ -28,6 +28,7 @@ const Dashboard: React.FC = () => {
         navigate('/admin');
         break;
       default:
+        // If no specific role, stay on general dashboard
         break;
     }
   }, [user, navigate]);
@@ -49,9 +50,9 @@ const Dashboard: React.FC = () => {
   };
 
   return (
-    <Layout>
+    <>
       {renderDashboard()}
-    </Layout>
+    </>
   );
 };
 

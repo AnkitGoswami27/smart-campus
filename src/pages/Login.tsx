@@ -9,6 +9,7 @@ import toast from 'react-hot-toast';
 const Login: React.FC = () => {
   const { user, login, loading } = useAuth();
   const { isDark, toggleTheme } = useTheme();
+  const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -30,6 +31,8 @@ const Login: React.FC = () => {
     
     if (success) {
       toast.success('Login successful!');
+      // Navigate to dashboard after successful login
+      navigate('/dashboard');
     } else {
       toast.error('Invalid email or password');
     }
