@@ -214,7 +214,21 @@ const StudentDashboard: React.FC = () => {
           });
         },
         (error) => {
-          console.error('Error getting location:', error);
+          // Handle geolocation errors gracefully
+          if (error.code === error.PERMISSION_DENIED) {
+            console.log('Location access denied by user');
+            // Set location to null but don't show error to user
+            setLocation(null);
+          } else if (error.code === error.POSITION_UNAVAILABLE) {
+            console.log('Location information unavailable');
+            setLocation(null);
+          } else if (error.code === error.TIMEOUT) {
+            console.log('Location request timed out');
+            setLocation(null);
+          } else {
+            console.log('An unknown error occurred while retrieving location');
+            setLocation(null);
+          }
         },
         { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 }
       );
