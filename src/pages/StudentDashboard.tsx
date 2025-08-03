@@ -419,34 +419,115 @@ Smart Campus Management System
     setIsScanning(true);
     toast.success('Starting QR scan...');
 
-    // Simulate QR scanning process
+    // Simulate QR scanning process - check for active sessions
     setTimeout(() => {
-      // Simulate successful attendance marking
-      const attendanceData = {
-        studentId: user?.studentId,
+      // Get active sessions from global storage
+      const globalSessions = JSON.parse(localStorage.getItem('campus-attendance-sessions') || '[]');
+      const activeSessions = globalSessions.filter((session: any) => 
+        session.status === 'active' && Date.now() < session.expiresAt
+      );
+
+      if (activeSessions.length === 0) {
+        setIsScanning(false);
+        setShowQRScanModal(false);
+        toast.error('No active QR sessions found. Please ask your instructor to create a session.');
+        return;
+      }
+
+      // Use the first active session for simulation
+      const sessionToScan = activeSessions[0];
+      
+      // Validate and mark attendance
+      const result = validateQRAttendance(sessionToScan, location);
+
+      setIsScanning(false);
+      setShowQRScanModal(false);
+      
+      if (result.success) {
+        toast.success(`Attendance marked for ${result.course} (${result.teacher})`);
+        // Update attendance rate
+        setStudentData(prev => ({
+          ...prev,
+          attendanceRate: Math.min(100, prev.attendanceRate + 0.5)
+        }));
+      } else {
+        toast.error(result.message);
+      }
+    }, 3000);
+  };
+
+  // Function to validate QR attendance (same as in Attendance.tsx)
+  const validateQRAttendance = (sessionData: any, studentLocation: any) => {
+    try {
+      // Check if student already marked attendance for this session
+      const alreadyMarked = sessionData.studentAttendance?.some(
+        (att: any) => att.studentId === user?.id
+      );
+
+      if (alreadyMarked) {
+        return { success: false, message: 'Attendance already marked for this session' };
+      }
+
+      // Validate location (within 100 meters of session location)
+      if (studentLocation && sessionData.location) {
+        const distance = calculateDistance(
+          studentLocation.latitude,
+          studentLocation.longitude,
+          sessionData.location.latitude,
+          sessionData.location.longitude
+        );
+
+        if (distance > 100) { // 100 meters tolerance
+          return { success: false, message: 'You are too far from the class location' };
+        }
+      }
+
+      // Mark attendance
+      const attendanceEntry = {
+        studentId: user?.id,
         studentName: user?.name,
-        course: 'CS401', // This would come from the QR code
+        studentRollNo: user?.studentId,
         timestamp: new Date().toLocaleString(),
-        location: location,
+        location: studentLocation,
         method: 'QR Code',
         status: 'present'
       };
 
-      // Store attendance record
-      const existingAttendance = JSON.parse(localStorage.getItem('student-attendance') || '[]');
-      const newAttendance = [attendanceData, ...existingAttendance];
-      localStorage.setItem('student-attendance', JSON.stringify(newAttendance));
+      // Update the global sessions storage
+      const globalSessions = JSON.parse(localStorage.getItem('campus-attendance-sessions') || '[]');
+      const updatedSessions = globalSessions.map((session: any) => 
+        session.sessionId === sessionData.sessionId
+          ? { ...session, studentAttendance: [...(session.studentAttendance || []), attendanceEntry] }
+          : session
+      );
+      localStorage.setItem('campus-attendance-sessions', JSON.stringify(updatedSessions));
 
-      setIsScanning(false);
-      setShowQRScanModal(false);
-      toast.success('Attendance marked successfully!');
-      
-      // Update attendance rate
-      setStudentData(prev => ({
-        ...prev,
-        attendanceRate: Math.min(100, prev.attendanceRate + 0.5)
-      }));
-    }, 3000);
+      return { 
+        success: true, 
+        message: `Attendance marked successfully`,
+        course: sessionData.course,
+        teacher: sessionData.teacher
+      };
+
+    } catch (error) {
+      return { success: false, message: 'Error processing attendance' };
+    }
+  };
+
+  // Calculate distance between two coordinates
+  const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number) => {
+    const R = 6371e3; // Earth's radius in meters
+    const φ1 = lat1 * Math.PI/180;
+    const φ2 = lat2 * Math.PI/180;
+    const Δφ = (lat2-lat1) * Math.PI/180;
+    const Δλ = (lon2-lon1) * Math.PI/180;
+
+    const a = Math.sin(Δφ/2) * Math.sin(Δφ/2) +
+              Math.cos(φ1) * Math.cos(φ2) *
+              Math.sin(Δλ/2) * Math.sin(Δλ/2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+
+    return R * c; // Distance in meters
   };
 
   const getEventIcon = (type: string) => {

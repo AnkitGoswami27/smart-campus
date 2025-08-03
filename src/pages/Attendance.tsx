@@ -18,9 +18,9 @@ const Attendance: React.FC = () => {
   const [timeRemaining, setTimeRemaining] = useState(0);
   const [attendanceRecords, setAttendanceRecords] = useState<any[]>([]);
 
-  // Global attendance storage for all sessions
+  // Global attendance storage for all sessions - shared between faculty and students
   const [globalAttendance, setGlobalAttendance] = useState(() => {
-    const stored = localStorage.getItem('global-attendance-records');
+    const stored = localStorage.getItem('campus-attendance-sessions');
     return stored ? JSON.parse(stored) : [];
   });
 
@@ -47,7 +47,7 @@ const Attendance: React.FC = () => {
 
   // Save global attendance to localStorage whenever it changes
   useEffect(() => {
-    localStorage.setItem('global-attendance-records', JSON.stringify(globalAttendance));
+    localStorage.setItem('campus-attendance-sessions', JSON.stringify(globalAttendance));
   }, [globalAttendance]);
 
   // Get user location
@@ -182,11 +182,12 @@ const Attendance: React.FC = () => {
         date: selectedDate,
         teacher: user?.name,
         teacherId: user?.id,
-        studentAttendance: [],
+        studentAttendance: [], // Will be populated when students scan
         status: 'active',
         createdAt: new Date().toLocaleString(),
         expiresAt: expiresAt,
-        location: location
+        location: location,
+        qrData: qrData // Store the QR data for validation
       };
       
       setGlobalAttendance(prev => [newRecord, ...prev]);
@@ -209,6 +210,75 @@ const Attendance: React.FC = () => {
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
 
     return R * c; // Distance in meters
+  };
+
+  // Function to validate and mark attendance from QR scan
+  const validateQRAttendance = (scannedData: string, studentLocation: any) => {
+    try {
+      const qrSessionData = JSON.parse(scannedData);
+      
+      // Find the active session
+      const activeSession = globalAttendance.find(session => 
+        session.sessionId === qrSessionData.id && 
+        session.status === 'active' &&
+        Date.now() < session.expiresAt
+      );
+
+      if (!activeSession) {
+        return { success: false, message: 'QR code is invalid or expired' };
+      }
+
+      // Check if student already marked attendance for this session
+      const alreadyMarked = activeSession.studentAttendance.some(
+        (att: any) => att.studentId === user?.id
+      );
+
+      if (alreadyMarked) {
+        return { success: false, message: 'Attendance already marked for this session' };
+      }
+
+      // Validate location (within 100 meters of session location)
+      if (studentLocation && activeSession.location) {
+        const distance = calculateDistance(
+          studentLocation.latitude,
+          studentLocation.longitude,
+          activeSession.location.latitude,
+          activeSession.location.longitude
+        );
+
+        if (distance > 100) { // 100 meters tolerance
+          return { success: false, message: 'You are too far from the class location' };
+        }
+      }
+
+      // Mark attendance
+      const attendanceEntry = {
+        studentId: user?.id,
+        studentName: user?.name,
+        studentRollNo: user?.studentId,
+        timestamp: new Date().toLocaleString(),
+        location: studentLocation,
+        method: 'QR Code',
+        status: 'present'
+      };
+
+      // Update the session with new attendance
+      setGlobalAttendance(prev => prev.map(session => 
+        session.sessionId === qrSessionData.id
+          ? { ...session, studentAttendance: [...session.studentAttendance, attendanceEntry] }
+          : session
+      ));
+
+      return { 
+        success: true, 
+        message: `Attendance marked for ${activeSession.course}`,
+        course: activeSession.course,
+        teacher: activeSession.teacher
+      };
+
+    } catch (error) {
+      return { success: false, message: 'Invalid QR code format' };
+    }
   };
 
   const markAttendance = (studentId: number, status: 'present' | 'absent' | 'late') => {
@@ -260,6 +330,39 @@ const Attendance: React.FC = () => {
 
     setGlobalAttendance(prev => [newRecord, ...prev]);
     toast.success('Attendance saved successfully!');
+  };
+
+  // Simulate QR code scanning for students
+  const simulateQRScan = () => {
+    if (!location) {
+      toast.error('Location access required for attendance');
+      return;
+    }
+
+    if (!isOnCampusWifi) {
+      toast.error('Please connect to campus WiFi to mark attendance');
+      return;
+    }
+
+    // Find an active session to simulate scanning
+    const activeSessions = globalAttendance.filter(session => 
+      session.status === 'active' && Date.now() < session.expiresAt
+    );
+
+    if (activeSessions.length === 0) {
+      toast.error('No active QR sessions available');
+      return;
+    }
+
+    // Use the first active session for simulation
+    const sessionToScan = activeSessions[0];
+    const result = validateQRAttendance(sessionToScan.qrData, location);
+
+    if (result.success) {
+      toast.success(result.message);
+    } else {
+      toast.error(result.message);
+    }
   };
 
   const downloadQRCode = () => {
@@ -439,12 +542,21 @@ const Attendance: React.FC = () => {
                   <div className="text-center">
                     <div className="p-6 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg">
                       <Scan className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                      <p className="text-gray-600 dark:text-gray-300 mb-4">
-                        Use the QR scanner in your dashboard to mark attendance
-                      </p>
-                      <p className="text-sm text-gray-500 dark:text-gray-400">
-                        Make sure you're connected to campus WiFi and location is enabled
-                      </p>
+                      <div className="space-y-4">
+                        <p className="text-gray-600 dark:text-gray-300">
+                          Scan QR code to mark attendance
+                        </p>
+                        <button
+                          onClick={simulateQRScan}
+                          disabled={!location || !isOnCampusWifi}
+                          className="bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white px-6 py-2 rounded-lg font-medium transition-colors"
+                        >
+                          Simulate QR Scan
+                        </button>
+                        <p className="text-sm text-gray-500 dark:text-gray-400">
+                          Make sure you're connected to campus WiFi and location is enabled
+                        </p>
+                      </div>
                     </div>
                   </div>
                 )}

@@ -185,7 +185,7 @@ const FacultyDashboard: React.FC = () => {
 
   const handleTakeAttendance = () => {
     navigate('/attendance');
-    toast.success('Opening attendance system');
+    toast.success('Opening QR attendance system');
   };
 
   const createAnnouncement = () => {
