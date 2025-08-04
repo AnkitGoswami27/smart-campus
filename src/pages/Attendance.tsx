@@ -63,8 +63,14 @@ const Attendance: React.FC = () => {
           toast.success('Location verified');
         },
         (error) => {
-          console.error('Error getting location:', error);
-          toast.error('Location access required for attendance');
+          if (error.code === error.PERMISSION_DENIED) {
+            console.log('Location access denied by user');
+            // Don't show error toast for user-denied permission
+            setLocation(null);
+          } else {
+            console.error('Error getting location:', error);
+            toast.error('Location access required for attendance');
+          }
         },
         { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 }
       );
