@@ -143,9 +143,9 @@ const Attendance: React.FC = () => {
       return;
     }
 
+    // Allow QR generation without location for testing purposes
     if (!location) {
-      toast.error('Location access required to create QR session');
-      return;
+      toast.warning('Location not available - QR will work without location verification');
     }
 
     const sessionId = Math.random().toString(36).substring(2, 15);
@@ -156,7 +156,7 @@ const Attendance: React.FC = () => {
       course: selectedCourse,
       date: selectedDate,
       timestamp: Date.now(),
-      location: location,
+      location: location || { latitude: 0, longitude: 0, accuracy: 0 }, // Default location if not available
       validFor: 300, // 5 minutes
       teacher: user?.name,
       teacherId: user?.id,
@@ -192,13 +192,14 @@ const Attendance: React.FC = () => {
         status: 'active',
         createdAt: new Date().toLocaleString(),
         expiresAt: expiresAt,
-        location: location,
+        location: location || { latitude: 0, longitude: 0, accuracy: 0 },
         qrData: qrData // Store the QR data for validation
       };
       
       setGlobalAttendance(prev => [newRecord, ...prev]);
 
     } catch (error) {
+      console.error('QR Generation Error:', error);
       toast.error('Failed to generate QR code');
     }
   };
@@ -521,7 +522,7 @@ const Attendance: React.FC = () => {
                     
                     <button
                       onClick={generateQRSession}
-                      disabled={!selectedCourse || !selectedDate || !location}
+                      disabled={!selectedCourse || !selectedDate}
                       className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white px-6 py-2 rounded-lg font-medium transition-colors"
                     >
                       Generate QR Session
