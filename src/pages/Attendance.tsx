@@ -145,7 +145,13 @@ const Attendance: React.FC = () => {
 
     // Allow QR generation without location for testing purposes
     if (!location) {
-      toast.warning('Location not available - QR will work without location verification');
+      toast('Location not available - QR will work without location verification', { 
+        icon: '⚠️',
+        style: {
+          borderColor: '#f59e0b',
+          color: '#f59e0b',
+        },
+      });
     }
 
     const sessionId = Math.random().toString(36).substring(2, 15);
