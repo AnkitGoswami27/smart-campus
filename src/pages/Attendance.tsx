@@ -143,15 +143,16 @@ const Attendance: React.FC = () => {
       return;
     }
 
-    // Allow QR generation without location for testing purposes
+    // Check location requirement for faculty
     if (!location) {
-      toast('Location not available - QR will work without location verification', { 
-        icon: '⚠️',
-        style: {
-          borderColor: '#f59e0b',
-          color: '#f59e0b',
-        },
-      });
+      toast.error('Location access is required to generate QR codes. Please enable location and refresh the page.');
+      return;
+    }
+
+    // Check WiFi requirement for faculty
+    if (!isOnCampusWifi) {
+      toast.error('Please connect to campus WiFi to generate QR codes.');
+      return;
     }
 
     const sessionId = Math.random().toString(36).substring(2, 15);
@@ -166,7 +167,9 @@ const Attendance: React.FC = () => {
       validFor: 300, // 5 minutes
       teacher: user?.name,
       teacherId: user?.id,
-      expiresAt: expiresAt
+      expiresAt: expiresAt,
+      requiresLocation: true,
+      requiresWifi: true
     };
 
     try {
@@ -348,12 +351,12 @@ const Attendance: React.FC = () => {
   // Simulate QR code scanning for students
   const simulateQRScan = () => {
     if (!location) {
-      toast.error('Location access required for attendance');
+      toast.error('Location access is required to mark attendance. Please enable location and try again.');
       return;
     }
 
     if (!isOnCampusWifi) {
-      toast.error('Please connect to campus WiFi to mark attendance');
+      toast.error('Please connect to campus WiFi to mark attendance.');
       return;
     }
 
