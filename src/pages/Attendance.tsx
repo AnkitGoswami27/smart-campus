@@ -79,6 +79,11 @@ const Attendance: React.FC = () => {
 
   // Check WiFi connection (simulated campus WiFi detection)
   useEffect(() => {
+    toast('Checking campus WiFi connection...', {
+      icon: '📶',
+      duration: 3000,
+    });
+    
     const checkWifi = () => {
       // Simulate campus WiFi detection based on connection info
       const connection = (navigator as any).connection || (navigator as any).mozConnection || (navigator as any).webkitConnection;
@@ -88,7 +93,9 @@ const Attendance: React.FC = () => {
       setIsOnCampusWifi(isConnected);
       
       if (isConnected) {
-        toast.success('Connected to Campus WiFi');
+        toast.success('Connected to Campus WiFi! QR attendance is now available.');
+      } else {
+        toast.error('Not connected to Campus WiFi. Please connect to use QR attendance.');
       }
     };
     
